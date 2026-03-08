@@ -1,0 +1,361 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  fullName        String    @db.VarChar(150)
+  phoneNumber     String?    @unique @db.VarChar(20)
+  email           String?   @unique @db.VarChar(150)
+  passwordHash    String    @db.VarChar(255)
+  role            Role      @default(FARMER)
+  region          String?   @db.VarChar(100)
+  profilePhotoUrl String?   @db.VarChar(300)
+  isVerified      Boolean   @default(false)
+  verificationToken   String?   @unique
+  verificationTokenExpiry DateTime?
+  createdAt       DateTime  @default(now())
+
+  // Relations
+  farms           Farm[]
+  listings        Listing[]
+  buyerOrders     Order[]   @relation("BuyerOrders")
+  agentOrders     Order[]   @relation("AgentOrders")
+  sentMessages    Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  reviewsGiven    Review[]  @relation("ReviewsGiven")
+  reviewsReceived Review[]  @relation("ReviewsReceived")
+  notifications   Notification[]
+  agentProfile    FieldAgent?
+  productionRecords ProductionRecord[]
+  barterRequests    BarterRequest[]
+  payments          Payment[]
+}
+
+enum Role {
+  FARMER
+  BUYER
+  AGENT
+  ADMIN
+}
+
+model Farm {
+  id               Int       @id @default(autoincrement())
+  farmName         String    @db.VarChar(150)
+  location         String    @db.VarChar(200)
+  sizeInAcres      Decimal?  @db.Decimal(10, 2)
+  primaryCropTypes String?
+  soilType         String?   @db.VarChar(100)
+  waterSource      String?   @db.VarChar(100)
+  createdAt        DateTime  @default(now())
+
+  // Relations
+  userId            Int
+  user              User       @relation(fields: [userId], references: [id])
+  listings          Listing[]
+  productionRecords ProductionRecord[]
+}
+
+model Category {
+  id               Int        @id @default(autoincrement())
+  name             String     @db.VarChar(100)
+  description      String?
+  iconUrl          String?    @db.VarChar(300)
+  isActive         Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+
+  // Self relation - parent/child categories
+  parentId         Int?
+  parent           Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children         Category[] @relation("CategoryTree")
+
+  // Relations
+  listings         Listing[]
+}
+
+enum ListingType {
+  SELL
+  BARTER
+  BOTH
+}
+
+enum ListingStatus {
+  ACTIVE
+  SOLD
+  EXPIRED
+  PAUSED
+}
+
+enum Unit {
+  KG
+  BAG
+  CRATE
+  PIECE
+  LITRE
+  BUNDLE
+}
+
+model Listing {
+  id                Int           @id @default(autoincrement())
+  title             String        @db.VarChar(200)
+  description       String?
+  quantityAvailable Decimal       @db.Decimal(10, 2)
+  unit              Unit
+  pricePerUnit      Decimal       @db.Decimal(12, 2)
+  listingType       ListingType   @default(SELL)
+  status            ListingStatus @default(ACTIVE)
+  harvestDate       DateTime?
+  location          String        @db.VarChar(200)
+  viewsCount        Int           @default(0)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Foreign keys
+  sellerId          Int
+  farmId            Int?
+  categoryId        Int
+
+  // Relations
+  seller            User          @relation(fields: [sellerId], references: [id])
+  farm              Farm?         @relation(fields: [farmId], references: [id])
+  category          Category      @relation(fields: [categoryId], references: [id])
+  images            ListingImage[]
+  orders            Order[]
+  barterRequestsAsTarget  BarterRequest[] @relation("TargetListing")
+  barterRequestsAsOffer   BarterRequest[] @relation("OfferedListing")
+  messages          Message[]
+}
+
+model ListingImage {
+  id        Int      @id @default(autoincrement())
+  imageUrl  String   @db.VarChar(500)
+  isPrimary Boolean  @default(false)
+  sortOrder Int      @default(0)
+  uploadedAt DateTime @default(now())
+
+  // Foreign key
+  listingId Int
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+}
+
+enum PaymentMethod {
+  MOMO
+  CASH
+  BARTER
+  CREDIT
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  DISPATCHED
+  DELIVERED
+  CANCELLED
+}
+
+model Order {
+  id                  Int           @id @default(autoincrement())
+  quantityOrdered     Decimal       @db.Decimal(10, 2)
+  unitPriceAtOrder    Decimal       @db.Decimal(12, 2)
+  totalPrice          Decimal       @db.Decimal(12, 2)
+  paymentMethod       PaymentMethod
+  status              OrderStatus   @default(PENDING)
+  deliveryAddress     String?       @db.VarChar(300)
+  expectedDeliveryDate DateTime?
+  notes               String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // Foreign keys
+  buyerId    Int
+  listingId  Int
+  agentId    Int?
+
+  // Relations
+  buyer      User     @relation("BuyerOrders", fields: [buyerId], references: [id])
+  listing    Listing  @relation(fields: [listingId], references: [id])
+  agent      User?    @relation("AgentOrders", fields: [agentId], references: [id], onDelete: SetNull)
+
+  // Children
+  payment    Payment?
+  review     Review?
+}
+
+enum BarterStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+}
+
+model BarterRequest {
+  id                 Int          @id @default(autoincrement())
+  offeredDescription String?
+  offeredQuantity    Decimal?     @db.Decimal(10, 2)
+  status             BarterStatus @default(PENDING)
+  message            String?
+  agreedAt           DateTime?
+  createdAt          DateTime     @default(now())
+
+  // Foreign keys
+  requesterId       Int
+  targetListingId   Int
+  offeredListingId  Int?
+
+  // Relations
+  requester         User     @relation(fields: [requesterId], references: [id])
+  targetListing     Listing  @relation("TargetListing", fields: [targetListingId], references: [id])
+  offeredListing    Listing? @relation("OfferedListing", fields: [offeredListingId], references: [id])
+}
+
+model FieldAgent {
+  id                 Int      @id @default(autoincrement())
+  assignedRegion     String   @db.VarChar(100)
+  commissionRate     Decimal  @db.Decimal(5, 2)
+  totalOrdersHandled Int      @default(0)
+  isActive           Boolean  @default(true)
+  joinedAt           DateTime @default(now())
+  bio                String?
+  ratingAvg          Decimal  @default(0) @db.Decimal(3, 2)
+
+  // Foreign key
+  userId  Int     @unique
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum ProductionUnit {
+  KG
+  BAG
+  CRATE
+  PIECE
+  LITRE
+}
+
+model ProductionRecord {
+  id                Int      @id @default(autoincrement())
+  cropName          String   @db.VarChar(150)
+  plantingDate      DateTime?
+  harvestDate       DateTime?
+  quantityHarvested Decimal? @db.Decimal(10, 2)
+  unit              ProductionUnit?
+  notes             String?
+  season            String?  @db.VarChar(50)
+  createdAt         DateTime @default(now())
+
+  // Foreign keys
+  farmId       Int
+  recordedById Int
+
+  // Relations
+  farm         Farm @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  recordedBy   User @relation(fields: [recordedById], references: [id])
+}
+
+enum MessageType {
+  TEXT
+  OFFER
+  SYSTEM
+}
+
+model Message {
+  id        Int         @id @default(autoincrement())
+  content   String
+  isRead    Boolean     @default(false)
+  sentAt    DateTime    @default(now())
+  type      MessageType @default(TEXT)
+
+  // Foreign keys
+  senderId   Int
+  receiverId Int
+  listingId  Int?
+
+  // Relations
+  sender    User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver  User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  listing   Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+}
+
+enum ReviewType {
+  BUYER
+  SELLER
+  AGENT
+}
+
+model Review {
+  id         Int        @id @default(autoincrement())
+  rating     Int
+  comment    String?
+  type       ReviewType
+  createdAt  DateTime   @default(now())
+
+  // Foreign keys
+  reviewerId      Int
+  reviewedUserId  Int
+  orderId         Int    @unique
+
+  // Relations
+  reviewer      User  @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  reviewedUser  User  @relation("ReviewsReceived", fields: [reviewedUserId], references: [id])
+  order         Order @relation(fields: [orderId], references: [id])
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REVERSED
+}
+
+model Payment {
+  id             Int           @id @default(autoincrement())
+  amount         Decimal       @db.Decimal(12, 2)
+  currency       String        @default("GHS") @db.VarChar(10)
+  method         PaymentMethod
+  status         PaymentStatus @default(PENDING)
+  transactionRef String?       @db.VarChar(100)
+  paidAt         DateTime?
+  notes          String?
+  createdAt      DateTime      @default(now())
+
+  // Foreign keys
+  orderId  Int  @unique
+  payerId  Int
+
+  // Relations
+  order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  payer   User  @relation(fields: [payerId], references: [id])
+}
+
+enum NotificationType {
+  ORDER
+  BARTER
+  MESSAGE
+  REVIEW
+  SYSTEM
+}
+
+model Notification {
+  id          Int              @id @default(autoincrement())
+  title       String           @db.VarChar(150)
+  message     String
+  type        NotificationType
+  isRead      Boolean          @default(false)
+  referenceId Int?
+  createdAt   DateTime         @default(now())
+
+  // Foreign key
+  userId  Int
+  user    User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
