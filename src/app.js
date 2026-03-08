@@ -2,7 +2,9 @@ import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import authRouter from './routes/authRoutes.js'
-import authenticate from './middleware/authenticate.js'
+import { authenticate } from '../middleware/authenticate.js'
+import listingRouter from './routes/listingRoutes.js'
+
 const app = express()
 // app.use(cors({
 //     // origin: process.env.CLIENT_URL,
@@ -10,10 +12,10 @@ const app = express()
 //     credentials: true
 // }))
 app.use(cors({
-    origin: (origin, callback) => {
-        callback(null, process.env.CLIENT_URL)
-    },
-    credentials: true
+  origin: (origin, callback) => {
+    callback(null, process.env.CLIENT_URL)
+  },
+  credentials: true
 }))
 app.use(express.json())
 app.use(cookieParser())
@@ -23,9 +25,10 @@ app.use((req, res, next) => {
 })
 
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok' })
+  res.json({ status: 'ok' })
 })
-app.use('/api/auth',authRouter)
+app.use('/api/auth', authRouter)
+app.use('/api/listings', listingRouter)
 
 
 app.get('/api/protected', authenticate, (req, res) => {
