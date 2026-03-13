@@ -2,9 +2,9 @@ import prisma from '../config/prisma.js'
 
 export const createListing = async (req, res) => {
   try {
-    const { title, description, price, quantity, unit, location, categoryId, listingType } = req.body
+    const { title, description, pricePerUnit, quantity, unit, location, categoryId, listingType } = req.body
 
-    const requiredFields = { title, price, quantity, unit, location, listingType }
+    const requiredFields = { title, pricePerUnit, quantity, unit, location, listingType }
     const missingFields = Object.keys(requiredFields).filter(key => !requiredFields[key])
     if (missingFields.length > 0) {
       return res.status(400).json({ message: `Missing required fields: ${missingFields.join(', ')}` })
@@ -14,16 +14,17 @@ export const createListing = async (req, res) => {
       data: {
         title,
         description,
-        price: parseFloat(price),
+        pricePerUnit: parseFloat(pricePerUnit),
         quantity: parseFloat(quantity),
+        quantityAvailable: parseFloat(quantity),
         unit,
         location,
         listingType,
         categoryId: categoryId ? parseInt(categoryId) : null,
-        farmerId: req.user.id
+        sellerId: req.user.id
       },
       include: {
-        farmer: { select: { id: true, fullName: true, email: true } },
+        seller: { select: { id: true, fullName: true, email: true } },
         category: true
       }
     })
@@ -39,16 +40,16 @@ export const getAllListings = async (req, res) => {
   try {
     const { category, listingType, location, minPrice, maxPrice, search, page = 1, limit = 20 } = req.query
 
-    const filters = { isActive: true }
+    const filters = { status: 'ACTIVE' }
 
     if (category) filters.categoryId = parseInt(category)
     if (listingType) filters.listingType = listingType
     if (location) filters.location = { contains: location, mode: 'insensitive' }
     if (search) filters.title = { contains: search, mode: 'insensitive' }
     if (minPrice || maxPrice) {
-      filters.price = {}
-      if (minPrice) filters.price.gte = parseFloat(minPrice)
-      if (maxPrice) filters.price.lte = parseFloat(maxPrice)
+      filters.pricePerUnit = {}
+      if (minPrice) filters.pricePerUnit.gte = parseFloat(minPrice)
+      if (maxPrice) filters.pricePerUnit.lte = parseFloat(maxPrice)
     }
 
     const skip = (parseInt(page) - 1) * parseInt(limit)
@@ -57,7 +58,7 @@ export const getAllListings = async (req, res) => {
       prisma.listing.findMany({
         where: filters,
         include: {
-          farmer: { select: { id: true, fullName: true } },
+          seller: { select: { id: true, fullName: true } },
           category: { select: { id: true, name: true } },
           images: { take: 1 }
         },
@@ -90,12 +91,12 @@ export const getListingById = async (req, res) => {
     const listing = await prisma.listing.findUnique({
       where: { id: parseInt(id) },
       include: {
-        farmer: { select: { id: true, fullName: true, email: true } },
+        seller: { select: { id: true, fullName: true, email: true } },
         category: true,
         images: true,
-        reviews: {
-          include: { reviewer: { select: { id: true, fullName: true } } }
-        }
+        // reviews: {
+        //   include: { reviewer: { select: { id: true, fullName: true } } }
+        // }
       }
     })
 
@@ -113,7 +114,7 @@ export const getListingById = async (req, res) => {
 export const updateListing = async (req, res) => {
   try {
     const { id } = req.params
-    const { title, description, price, quantity, unit, location, categoryId, listingType, isActive } = req.body
+    const { title, description, pricePerUnit, quantity, quantityAvailable, unit, location, categoryId, listingType, status } = req.body
 
     const listing = await prisma.listing.findUnique({ where: { id: parseInt(id) } })
 
@@ -121,7 +122,7 @@ export const updateListing = async (req, res) => {
       return res.status(404).json({ message: 'Listing not found' })
     }
 
-    if (listing.farmerId !== req.user.id) {
+    if (listing.sellerId !== req.user.id) {
       return res.status(403).json({ message: 'You can only update your own listings' })
     }
 
@@ -130,16 +131,17 @@ export const updateListing = async (req, res) => {
       data: {
         ...(title && { title }),
         ...(description && { description }),
-        ...(price && { price: parseFloat(price) }),
+        ...(pricePerUnit && { pricePerUnit: parseFloat(pricePerUnit) }),
         ...(quantity && { quantity: parseFloat(quantity) }),
+        ...(quantityAvailable && { quantityAvailable: parseFloat(quantityAvailable) }),
         ...(unit && { unit }),
         ...(location && { location }),
         ...(listingType && { listingType }),
         ...(categoryId && { categoryId: parseInt(categoryId) }),
-        ...(isActive !== undefined && { isActive })
+        ...(status && { status })
       },
       include: {
-        farmer: { select: { id: true, fullName: true } },
+        seller: { select: { id: true, fullName: true } },
         category: true
       }
     })
@@ -161,7 +163,7 @@ export const deleteListing = async (req, res) => {
       return res.status(404).json({ message: 'Listing not found' })
     }
 
-    if (listing.farmerId !== req.user.id) {
+    if (listing.sellerId !== req.user.id) {
       return res.status(403).json({ message: 'You can only delete your own listings' })
     }
 
@@ -173,3 +175,7 @@ export const deleteListing = async (req, res) => {
     return res.status(500).json({ message: 'Internal server error' })
   }
 }
+
+
+
+

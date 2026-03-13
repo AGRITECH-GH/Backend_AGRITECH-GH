@@ -112,6 +112,7 @@ model Listing {
   title             String        @db.VarChar(200)
   description       String?
   quantityAvailable Decimal       @db.Decimal(10, 2)
+  quantity          Decimal       @db.Decimal(10, 2)
   unit              Unit
   pricePerUnit      Decimal       @db.Decimal(12, 2)
   listingType       ListingType   @default(SELL)

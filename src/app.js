@@ -2,7 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import authRouter from './routes/authRoutes.js'
-import { authenticate } from '../middleware/authenticate.js'
+import { authenticate } from './middleware/authenticate.js'
 import listingRouter from './routes/listingRoutes.js'
 
 const app = express()
