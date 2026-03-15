@@ -24,6 +24,7 @@ model User {
   region          String?   @db.VarChar(100)
   profilePhotoUrl String?   @db.VarChar(300)
   isVerified      Boolean   @default(false)
+  isActive        Boolean   @default(true)
   verificationToken   String?   @unique
   verificationTokenExpiry DateTime?
   createdAt       DateTime  @default(now())
