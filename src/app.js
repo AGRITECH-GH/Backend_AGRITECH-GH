@@ -4,6 +4,8 @@ import cookieParser from 'cookie-parser'
 import authRouter from './routes/authRoutes.js'
 import { authenticate } from './middleware/authenticate.js'
 import listingRouter from './routes/listingRoutes.js'
+import orderRouter from './routes/orderRoutes.js'
+import cartRouter from './routes/cartRoutes.js'
 
 const app = express()
 // app.use(cors({
@@ -29,6 +31,8 @@ app.get('/api/health', (req, res) => {
 })
 app.use('/api/auth', authRouter)
 app.use('/api/listings', listingRouter)
+app.use('/api/orders', orderRouter)
+app.use('/api/cart', cartRouter)
 
 
 app.get('/api/protected', authenticate, (req, res) => {
