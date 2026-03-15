@@ -177,5 +177,44 @@ export const deleteListing = async (req, res) => {
 }
 
 
+export const uploadListingImages = async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const listing = await prisma.listing.findUnique({ where: { id: parseInt(id) } })
+
+    if (!listing) {
+      return res.status(404).json({ message: 'Listing not found' })
+    }
+
+    if (listing.sellerId !== req.user.id) {
+      return res.status(403).json({ message: 'You can only upload images to your own listings' })
+    }
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ message: 'No images uploaded' })
+    }
+
+    const images = await Promise.all(
+      req.files.map((file, index) =>
+        prisma.listingImage.create({
+          data: {
+            imageUrl: file.path,
+            isPrimary: index === 0,
+            sortOrder: index,
+            listingId: parseInt(id)
+          }
+        })
+      )
+    )
+
+    return res.status(201).json({ message: 'Images uploaded successfully', images })
+  } catch (error) {
+    console.error('Upload listing images error:', error)
+    return res.status(500).json({ message: 'Internal server error' })
+  }
+}
+
+
 
 

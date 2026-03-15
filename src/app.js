@@ -6,6 +6,7 @@ import { authenticate } from './middleware/authenticate.js'
 import listingRouter from './routes/listingRoutes.js'
 import orderRouter from './routes/orderRoutes.js'
 import cartRouter from './routes/cartRoutes.js'
+import barterRouter from './routes/barterRoutes.js'
 
 const app = express()
 // app.use(cors({
@@ -33,6 +34,7 @@ app.use('/api/auth', authRouter)
 app.use('/api/listings', listingRouter)
 app.use('/api/orders', orderRouter)
 app.use('/api/cart', cartRouter)
+app.use('/api/barter', barterRouter)
 
 
 app.get('/api/protected', authenticate, (req, res) => {

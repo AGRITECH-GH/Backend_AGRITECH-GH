@@ -253,6 +253,17 @@ model BarterRequest {
   requester         User     @relation(fields: [requesterId], references: [id])
   targetListing     Listing  @relation("TargetListing", fields: [targetListingId], references: [id])
   offeredListing    Listing? @relation("OfferedListing", fields: [offeredListingId], references: [id])
+  images  BarterImage[]
+}
+
+model BarterImage {
+  id              Int          @id @default(autoincrement())
+  imageUrl        String       @db.VarChar(500)
+  createdAt       DateTime     @default(now())
+  // Foreign key
+  barterRequestId Int
+  // Relations
+  barterRequest   BarterRequest @relation(fields: [barterRequestId], references: [id], onDelete: Cascade)
 }
 
 model FieldAgent {
