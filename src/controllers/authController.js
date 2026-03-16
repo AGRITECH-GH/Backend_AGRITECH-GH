@@ -39,6 +39,21 @@ export const register = async (req, res) => {
             }
         })
 
+        if (role === 'AGENT') {
+            const { assignedRegion, commissionRate, bio } = req.body
+            if (!assignedRegion || !commissionRate) {
+                return res.status(400).json({ message: 'assignedRegion and commissionRate are required for agents' })
+            }
+            await prisma.fieldAgent.create({
+                data: {
+                    assignedRegion,
+                    commissionRate: parseFloat(commissionRate),
+                    bio,
+                    userId: user.id
+                }
+            })
+        }
+
         const verificationToken = crypto.randomBytes(32).toString('hex')
         const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 

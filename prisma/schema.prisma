@@ -43,6 +43,9 @@ model User {
   productionRecords ProductionRecord[]
   barterRequests    BarterRequest[]
   payments          Payment[]
+  agentId   Int?
+  managedBy FieldAgent? @relation("ManagedFarmers", fields: [agentId], references: [id])
+  agentRequests  AgentRequest[] @relation("FarmerAgentRequests")
   cart             Cart?
 }
 
@@ -280,6 +283,29 @@ model FieldAgent {
   // Foreign key
   userId  Int     @unique
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  managedFarmers User[]       @relation("ManagedFarmers")
+  agentRequests  AgentRequest[]
+}
+
+model AgentRequest {
+  id        Int      @id @default(autoincrement())
+  status    AgentRequestStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  // Foreign keys
+  farmerId  Int
+  agentId   Int
+  // Relations
+  farmer    User     @relation("FarmerAgentRequests", fields: [farmerId], references: [id], onDelete: Cascade)
+  agent     FieldAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([farmerId, agentId])
+}
+
+enum AgentRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
 }
 
 enum ProductionUnit {
