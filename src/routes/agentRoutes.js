@@ -31,6 +31,3 @@ router.put('/requests/:requestId', authenticate, authorize('AGENT'), handleAgent
 router.put('/orders/:orderId/assign', authenticate, authorize('ADMIN'), assignAgentToOrder)
 
 export default router
-
-
-//	52.24.54.227

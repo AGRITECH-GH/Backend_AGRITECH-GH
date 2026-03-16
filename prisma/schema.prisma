@@ -400,6 +400,10 @@ model Payment {
   transactionRef String?       @db.VarChar(100)
   paidAt         DateTime?
   notes          String?
+  paystackReference  String?   @unique @db.VarChar(100)
+  paystackResponse   Json?
+  ipAddress          String?   @db.VarChar(45)
+  attemptCount       Int       @default(0)
   createdAt      DateTime      @default(now())
 
   // Foreign keys

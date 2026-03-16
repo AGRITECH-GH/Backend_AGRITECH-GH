@@ -21,6 +21,7 @@
   "homepage": "https://github.com/AGRITECH-GH/Backend_AGRITECH-GH#readme",
   "dependencies": {
     "@prisma/client": "^5.22.0",
+    "axios": "^1.13.6",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^1.41.3",
     "cookie-parser": "^1.4.7",

@@ -9,7 +9,7 @@ import cartRouter from './routes/cartRoutes.js'
 import barterRouter from './routes/barterRoutes.js'
 import adminRouter from './routes/adminRoutes.js'
 import agentRouter from './routes/agentRoutes.js'
-
+import paymentRouter from './routes/paymentRoutes.js'
 const app = express()
 // app.use(cors({
 //     // origin: process.env.CLIENT_URL,
@@ -22,6 +22,7 @@ app.use(cors({
   },
   credentials: true
 }))
+app.use('/api/payments/webhook', express.raw({ type: 'application/json' }))
 app.use(express.json())
 app.use(cookieParser())
 app.use((req, res, next) => {
@@ -39,7 +40,7 @@ app.use('/api/cart', cartRouter)
 app.use('/api/barter', barterRouter)
 app.use('/api/admin', adminRouter)
 app.use('/api/agents', agentRouter)
-
+app.use('/api/payments', paymentRouter)
 app.get('/api/protected', authenticate, (req, res) => {
   res.json({ message: 'You are authenticated', user: req.user })
 })
