@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import prisma from '../config/prisma.js'
 import crypto from 'crypto'
-import { sendVerificationEmail,sendPasswordResetEmail } from '../services/emailService.js'
+import { sendVerificationEmail, sendPasswordResetEmail } from '../services/emailService.js'
 export const register = async (req, res) => {
     try {
         const { fullName, email, password, role } = req.body
@@ -364,6 +364,43 @@ export const resetPassword = async (req, res) => {
         return res.status(200).json({ message: 'Password reset successfully' })
     } catch (error) {
         console.error('Reset password error:', error)
+        return res.status(500).json({ message: 'Internal server error' })
+    }
+}
+
+export const changePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body
+
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ message: 'Current password and new password are required' })
+        }
+
+        if (newPassword.length < 8 || !/\d/.test(newPassword)) {
+            return res.status(400).json({ message: 'New password must be at least 8 characters and contain at least one number' })
+        }
+
+        const user = await prisma.user.findUnique({ where: { id: req.user.id } })
+
+        const isMatch = await bcrypt.compare(currentPassword, user.passwordHash)
+        if (!isMatch) {
+            return res.status(400).json({ message: 'Current password is incorrect' })
+        }
+
+        if (currentPassword === newPassword) {
+            return res.status(400).json({ message: 'New password must be different from current password' })
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 12)
+
+        await prisma.user.update({
+            where: { id: req.user.id },
+            data: { passwordHash: hashedPassword }
+        })
+
+        return res.status(200).json({ message: 'Password changed successfully' })
+    } catch (error) {
+        console.error('Change password error:', error)
         return res.status(500).json({ message: 'Internal server error' })
     }
 }
