@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import prisma from '../config/prisma.js'
 import crypto from 'crypto'
-import { sendVerificationEmail } from '../services/emailService.js'
+import { sendVerificationEmail,sendPasswordResetEmail } from '../services/emailService.js'
 export const register = async (req, res) => {
     try {
         const { fullName, email, password, role } = req.body
@@ -64,9 +64,9 @@ export const register = async (req, res) => {
 
         await sendVerificationEmail(user.email, user.fullName, verificationToken)
         const accessToken = jwt.sign(
-            { id: user.id, role: user.role },
+            { id: user.id, role: user.role, isVerified: user.isVerified },
             process.env.JWT_ACCESS_SECRET,
-            { expiresIn: '30m' }
+            { expiresIn: '50m' }
 
         )
         const refreshToken = jwt.sign(
@@ -128,9 +128,9 @@ export const verifyEmail = async (req, res) => {
         })
 
         const accessToken = jwt.sign(
-            { id: user.id, role: user.role },
+            { id: user.id, role: user.role, isVerified: user.isVerified },
             process.env.JWT_ACCESS_SECRET,
-            { expiresIn: '15m' }
+            { expiresIn: '50m' }
         )
 
         const refreshToken = jwt.sign(
@@ -225,9 +225,9 @@ export const login = async (req, res) => {
         }
 
         const accessToken = jwt.sign(
-            { id: user.id, role: user.role },
+            { id: user.id, role: user.role, isVerified: user.isVerified },
             process.env.JWT_ACCESS_SECRET,
-            { expiresIn: '15m' }
+            { expiresIn: '50m' }
         )
 
         const refreshToken = jwt.sign(
@@ -271,9 +271,9 @@ export const refresh = async (req, res) => {
         const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET)
 
         const accessToken = jwt.sign(
-            { id: decoded.id, role: decoded.role },
+            { id: decoded.id, role: decoded.role, isVerified: user.isVerified },
             process.env.JWT_ACCESS_SECRET,
-            { expiresIn: '15m' }
+            { expiresIn: '50m' }
         )
 
         return res.status(200).json({ accessToken })
@@ -291,6 +291,79 @@ export const logout = async (req, res) => {
         })
         return res.status(200).json({ message: 'Logged out successfully' })
     } catch (error) {
+        return res.status(500).json({ message: 'Internal server error' })
+    }
+}
+
+export const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body
+
+        if (!email) {
+            return res.status(400).json({ message: 'Email is required' })
+        }
+
+        const user = await prisma.user.findUnique({ where: { email } })
+
+        // Always return success to prevent email enumeration
+        if (!user) {
+            return res.status(200).json({ message: 'If that email exists, a reset link has been sent' })
+        }
+
+        const resetToken = crypto.randomBytes(32).toString('hex')
+        const resetTokenExpiry = new Date(Date.now() + 1 * 60 * 60 * 1000) // 1 hour
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: { verificationToken: resetToken, verificationTokenExpiry: resetTokenExpiry }
+        })
+
+        await sendPasswordResetEmail(user.email, user.fullName, resetToken)
+
+        return res.status(200).json({ message: 'If that email exists, a reset link has been sent' })
+    } catch (error) {
+        console.error('Forgot password error:', error)
+        return res.status(500).json({ message: 'Internal server error' })
+    }
+}
+
+export const resetPassword = async (req, res) => {
+    try {
+        const { token, password } = req.body
+
+        if (!token || !password) {
+            return res.status(400).json({ message: 'Token and password are required' })
+        }
+
+        if (password.length < 8 || !/\d/.test(password)) {
+            return res.status(400).json({ message: 'Password must be at least 8 characters and contain at least one number' })
+        }
+
+        const user = await prisma.user.findFirst({
+            where: {
+                verificationToken: token,
+                verificationTokenExpiry: { gt: new Date() }
+            }
+        })
+
+        if (!user) {
+            return res.status(400).json({ message: 'Invalid or expired reset token' })
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 12)
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                passwordHash: hashedPassword,
+                verificationToken: null,
+                verificationTokenExpiry: null
+            }
+        })
+
+        return res.status(200).json({ message: 'Password reset successfully' })
+    } catch (error) {
+        console.error('Reset password error:', error)
         return res.status(500).json({ message: 'Internal server error' })
     }
 }

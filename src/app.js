@@ -10,6 +10,7 @@ import barterRouter from './routes/barterRoutes.js'
 import adminRouter from './routes/adminRoutes.js'
 import agentRouter from './routes/agentRoutes.js'
 import paymentRouter from './routes/paymentRoutes.js'
+import { authLimiter, generalLimiter, paymentLimiter } from './middleware/rateLimiter.js'
 const app = express()
 // app.use(cors({
 //     // origin: process.env.CLIENT_URL,
@@ -33,6 +34,7 @@ app.use((req, res, next) => {
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })
 })
+app.use(generalLimiter)
 app.use('/api/auth', authRouter)
 app.use('/api/listings', listingRouter)
 app.use('/api/orders', orderRouter)
@@ -41,6 +43,9 @@ app.use('/api/barter', barterRouter)
 app.use('/api/admin', adminRouter)
 app.use('/api/agents', agentRouter)
 app.use('/api/payments', paymentRouter)
+app.use('/api/auth/login', authLimiter)
+app.use('/api/auth/register', authLimiter)
+app.use('/api/payments/initialize', paymentLimiter)
 app.get('/api/protected', authenticate, (req, res) => {
   res.json({ message: 'You are authenticated', user: req.user })
 })

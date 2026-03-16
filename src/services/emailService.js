@@ -33,3 +33,37 @@ export const sendVerificationEmail = async (email, fullName, token) => {
   console.log('Email sent:', data)
 }
 
+export const sendPasswordResetEmail = async (email, fullName, token) => {
+  const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${token}`
+
+  const { data, error } = await resend.emails.send({
+    from: 'AgriTech GH <no-reply@agritechgh.me>',
+    to: email,
+    subject: 'Reset your AgriTech GH password',
+    html: `
+      <h2>Password Reset Request</h2>
+      <p>Hi ${fullName},</p>
+      <p>You requested to reset your password. Click the button below to reset it.</p>
+      <a href="${resetUrl}" style="
+        background-color: #16a34a;
+        color: white;
+        padding: 12px 24px;
+        text-decoration: none;
+        border-radius: 6px;
+        display: inline-block;
+        margin: 16px 0;
+      ">Reset Password</a>
+      <p>Or copy this link: ${resetUrl}</p>
+      <p>This link expires in 1 hour.</p>
+      <p>If you did not request this, ignore this email — your password will not change.</p>
+    `
+  })
+
+  if (error) {
+    console.error('Resend error:', error)
+    throw new Error(error.message)
+  }
+
+  console.log('Password reset email sent:', data)
+}
+
