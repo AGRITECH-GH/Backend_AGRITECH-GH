@@ -128,7 +128,7 @@ export const requestAgent = async (req, res) => {
     try {
         const { agentId } = req.params
 
-        const agentProfile = await prisma.fieldAgent.findUnique({ where: { id: parseInt(agentId) } })
+        const agentProfile = await prisma.fieldAgent.findUnique({ where: { id: agentId } })
         if (!agentProfile) {
             return res.status(404).json({ message: 'Agent not found' })
         }
@@ -141,7 +141,7 @@ export const requestAgent = async (req, res) => {
 
         // Check for existing pending request
         const existing = await prisma.agentRequest.findUnique({
-            where: { farmerId_agentId: { farmerId: req.user.id, agentId: parseInt(agentId) } }
+            where: { farmerId_agentId: { farmerId: req.user.id, agentId } }
         })
         if (existing) {
             return res.status(409).json({ message: 'You already have a pending request with this agent' })
@@ -150,7 +150,7 @@ export const requestAgent = async (req, res) => {
         const request = await prisma.agentRequest.create({
             data: {
                 farmerId: req.user.id,
-                agentId: parseInt(agentId)
+                agentId
             },
             include: {
                 farmer: { select: { id: true, fullName: true } },
@@ -179,7 +179,7 @@ export const handleAgentRequest = async (req, res) => {
             return res.status(404).json({ message: 'Agent profile not found' })
         }
 
-        const request = await prisma.agentRequest.findUnique({ where: { id: parseInt(requestId) } })
+        const request = await prisma.agentRequest.findUnique({ where: { id: requestId } })
         if (!request) {
             return res.status(404).json({ message: 'Request not found' })
         }
@@ -193,7 +193,7 @@ export const handleAgentRequest = async (req, res) => {
         }
 
         await prisma.agentRequest.update({
-            where: { id: parseInt(requestId) },
+            where: { id: requestId },
             data: { status }
         })
 
@@ -276,7 +276,7 @@ export const getAgentById = async (req, res) => {
         const { id } = req.params
 
         const agent = await prisma.fieldAgent.findUnique({
-            where: { id: parseInt(id) },
+            where: { id },
             include: {
                 user: { select: { id: true, fullName: true, email: true, region: true } }
             }
@@ -302,13 +302,13 @@ export const assignAgentToOrder = async (req, res) => {
             return res.status(400).json({ message: 'agentId is required' })
         }
 
-        const order = await prisma.order.findUnique({ where: { id: parseInt(orderId) } })
+        const order = await prisma.order.findUnique({ where: { id: orderId } })
         if (!order) {
             return res.status(404).json({ message: 'Order not found' })
         }
 
         const agent = await prisma.fieldAgent.findUnique({
-            where: { id: parseInt(agentId) },
+            where: { id: agentId },
             include: { user: true }
         })
         if (!agent) {
@@ -316,7 +316,7 @@ export const assignAgentToOrder = async (req, res) => {
         }
 
         const updated = await prisma.order.update({
-            where: { id: parseInt(orderId) },
+            where: { id: orderId },
             data: { agentId: agent.userId },
             include: {
                 agent: { select: { id: true, fullName: true } }
@@ -325,7 +325,7 @@ export const assignAgentToOrder = async (req, res) => {
 
         // Increment agent's total orders handled
         await prisma.fieldAgent.update({
-            where: { id: parseInt(agentId) },
+            where: { id: agentId },
             data: { totalOrdersHandled: { increment: 1 } }
         })
 

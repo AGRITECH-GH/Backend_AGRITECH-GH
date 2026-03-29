@@ -12,7 +12,7 @@ export const createBarterRequest = async (req, res) => {
             return res.status(400).json({ message: 'Either offeredListingId or offeredDescription is required' })
         }
 
-        const targetListing = await prisma.listing.findUnique({ where: { id: parseInt(targetListingId) } })
+        const targetListing = await prisma.listing.findUnique({ where: { id: targetListingId } })
 
         if (!targetListing) {
             return res.status(404).json({ message: 'Target listing not found' })
@@ -27,7 +27,7 @@ export const createBarterRequest = async (req, res) => {
         }
 
         if (offeredListingId) {
-            const offeredListing = await prisma.listing.findUnique({ where: { id: parseInt(offeredListingId) } })
+            const offeredListing = await prisma.listing.findUnique({ where: { id: offeredListingId } })
             if (!offeredListing) {
                 return res.status(404).json({ message: 'Offered listing not found' })
             }
@@ -38,8 +38,8 @@ export const createBarterRequest = async (req, res) => {
 
         const barterRequest = await prisma.barterRequest.create({
             data: {
-                targetListingId: parseInt(targetListingId),
-                offeredListingId: offeredListingId ? parseInt(offeredListingId) : null,
+                targetListingId,
+                offeredListingId: offeredListingId ?? null,
                 offeredDescription,
                 offeredQuantity: offeredQuantity ? parseFloat(offeredQuantity) : null,
                 message,
@@ -104,7 +104,7 @@ export const updateBarterStatus = async (req, res) => {
         }
 
         const barterRequest = await prisma.barterRequest.findUnique({
-            where: { id: parseInt(id) },
+            where: { id },
             include: { targetListing: true }
         })
 
@@ -128,7 +128,7 @@ export const updateBarterStatus = async (req, res) => {
         }
 
         const updated = await prisma.barterRequest.update({
-            where: { id: parseInt(id) },
+            where: { id },
             data: {
                 status,
                 agreedAt: status === 'ACCEPTED' ? new Date() : null
@@ -150,7 +150,7 @@ export const uploadBarterImages = async (req, res) => {
     try {
         const { id } = req.params
 
-        const barterRequest = await prisma.barterRequest.findUnique({ where: { id: parseInt(id) } })
+        const barterRequest = await prisma.barterRequest.findUnique({ where: { id } })
 
         if (!barterRequest) {
             return res.status(404).json({ message: 'Barter request not found' })
@@ -169,7 +169,7 @@ export const uploadBarterImages = async (req, res) => {
                 prisma.barterImage.create({
                     data: {
                         imageUrl: file.path,
-                        barterRequestId: parseInt(id)
+                        barterRequestId: id
                     }
                 })
             )

@@ -1,13 +1,17 @@
-import { Router } from "express";
-import { changePassword, register } from "../controllers/authController.js";
-import { login } from "../controllers/authController.js";
-import { refresh } from "../controllers/authController.js";
-import { logout } from "../controllers/authController.js";
-import { verifyEmail } from "../controllers/authController.js";
-import { resendVerification } from "../controllers/authController.js";
-import { forgotPassword } from "../controllers/authController.js";
-import { resetPassword } from "../controllers/authController.js";
-import { changePassword } from "../controllers/authController.js";
+import { Router } from 'express'
+import { authenticate } from '../middleware/authenticate.js'
+import {
+  register,
+  login,
+  refresh,
+  logout,
+  verifyEmail,
+  resendVerification,
+  forgotPassword,
+  resetPassword,
+  changePassword
+} from '../controllers/authController.js'
+
 const router = Router()
 
 router.post('/register', register)

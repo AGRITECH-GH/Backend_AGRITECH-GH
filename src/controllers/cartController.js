@@ -47,7 +47,7 @@ export const addToCart = async (req, res) => {
             return res.status(400).json({ message: 'listingId and quantity are required' })
         }
 
-        const listing = await prisma.listing.findUnique({ where: { id: parseInt(listingId) } })
+        const listing = await prisma.listing.findUnique({ where: { id: listingId } })
 
         if (!listing) {
             return res.status(404).json({ message: 'Listing not found' })
@@ -73,9 +73,9 @@ export const addToCart = async (req, res) => {
 
         // Upsert cart item
         const cartItem = await prisma.cartItem.upsert({
-            where: { cartId_listingId: { cartId: cart.id, listingId: parseInt(listingId) } },
+            where: { cartId_listingId: { cartId: cart.id, listingId } },
             update: { quantity: parseFloat(quantity) },
-            create: { cartId: cart.id, listingId: parseInt(listingId), quantity: parseFloat(quantity) },
+            create: { cartId: cart.id, listingId, quantity: parseFloat(quantity) },
             include: { listing: { select: { id: true, title: true, pricePerUnit: true, unit: true } } }
         })
 
@@ -97,7 +97,7 @@ export const removeFromCart = async (req, res) => {
         }
 
         await prisma.cartItem.delete({
-            where: { cartId_listingId: { cartId: cart.id, listingId: parseInt(listingId) } }
+            where: { cartId_listingId: { cartId: cart.id, listingId } }
         })
 
         return res.status(200).json({ message: 'Item removed from cart' })

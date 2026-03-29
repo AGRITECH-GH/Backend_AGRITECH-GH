@@ -56,19 +56,19 @@ export const updateUser = async (req, res) => {
         const { id } = req.params
         const { isActive, role, isVerified } = req.body
 
-        const user = await prisma.user.findUnique({ where: { id: parseInt(id) } })
+        const user = await prisma.user.findUnique({ where: { id } })
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' })
         }
 
         // Prevent admin from disabling themselves
-        if (parseInt(id) === req.user.id && isActive === false) {
+        if (id === req.user.id && isActive === false) {
             return res.status(400).json({ message: 'You cannot disable your own account' })
         }
 
         const updated = await prisma.user.update({
-            where: { id: parseInt(id) },
+            where: { id },
             data: {
                 ...(isActive !== undefined && { isActive }),
                 ...(role && { role }),
@@ -179,21 +179,92 @@ export const deleteUser = async (req, res) => {
     try {
         const { id } = req.params
 
-        if (parseInt(id) === req.user.id) {
+        if (id === req.user.id) {
             return res.status(400).json({ message: 'You cannot delete your own account' })
         }
 
-        const user = await prisma.user.findUnique({ where: { id: parseInt(id) } })
+        const user = await prisma.user.findUnique({ where: { id } })
 
         if (!user) {
             return res.status(404).json({ message: 'User not found' })
         }
 
-        await prisma.user.delete({ where: { id: parseInt(id) } })
+        await prisma.user.delete({ where: { id } })
 
         return res.status(200).json({ message: 'User deleted successfully' })
     } catch (error) {
         console.error('Delete user error:', error)
+        return res.status(500).json({ message: 'Internal server error' })
+    }
+}
+
+export const createCategory = async (req, res) => {
+    try {
+        const { name, description, iconUrl, parentId } = req.body
+
+        if (!name) {
+            return res.status(400).json({ message: 'Category name is required' })
+        }
+
+        const category = await prisma.category.create({
+            data: {
+                name,
+                description,
+                iconUrl,
+                parentId: parentId ?? null
+            }
+        })
+
+        return res.status(201).json({ message: 'Category created successfully', category })
+    } catch (error) {
+        console.error('Create category error:', error)
+        return res.status(500).json({ message: 'Internal server error' })
+    }
+}
+
+export const getCategories = async (req, res) => {
+    try {
+        const categories = await prisma.category.findMany({
+            where: { isActive: true, parentId: null },
+            include: {
+                children: {
+                    where: { isActive: true },
+                    select: { id: true, name: true, description: true, iconUrl: true }
+                }
+            },
+            orderBy: { name: 'asc' }
+        })
+
+        return res.status(200).json({ categories })
+    } catch (error) {
+        console.error('Get categories error:', error)
+        return res.status(500).json({ message: 'Internal server error' })
+    }
+}
+
+export const updateCategory = async (req, res) => {
+    try {
+        const { id } = req.params
+        const { name, description, iconUrl, isActive } = req.body
+
+        const category = await prisma.category.findUnique({ where: { id } })
+        if (!category) {
+            return res.status(404).json({ message: 'Category not found' })
+        }
+
+        const updated = await prisma.category.update({
+            where: { id },
+            data: {
+                ...(name && { name }),
+                ...(description && { description }),
+                ...(iconUrl && { iconUrl }),
+                ...(isActive !== undefined && { isActive })
+            }
+        })
+
+        return res.status(200).json({ message: 'Category updated successfully', category: updated })
+    } catch (error) {
+        console.error('Update category error:', error)
         return res.status(500).json({ message: 'Internal server error' })
     }
 }

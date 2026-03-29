@@ -141,7 +141,7 @@ export const getOrderById = async (req, res) => {
     const { id } = req.params
 
     const order = await prisma.order.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       include: {
         items: {
           include: {
@@ -189,7 +189,7 @@ export const updateOrderStatus = async (req, res) => {
     }
 
     const order = await prisma.order.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       include: { items: { include: { listing: true } } }
     })
 
@@ -221,7 +221,7 @@ export const updateOrderStatus = async (req, res) => {
 
     if (status === 'CANCELLED' && order.status !== 'CANCELLED') {
       await prisma.$transaction(async (tx) => {
-        await tx.order.update({ where: { id: parseInt(id) }, data: { status } })
+        await tx.order.update({ where: { id }, data: { status } })
         for (const item of order.items) {
           await tx.listing.update({
             where: { id: item.listingId },
@@ -230,7 +230,7 @@ export const updateOrderStatus = async (req, res) => {
         }
       })
     } else {
-      await prisma.order.update({ where: { id: parseInt(id) }, data: { status } })
+      await prisma.order.update({ where: { id }, data: { status } })
     }
 
     return res.status(200).json({ message: `Order status updated to ${status}` })

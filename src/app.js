@@ -11,6 +11,8 @@ import adminRouter from './routes/adminRoutes.js'
 import agentRouter from './routes/agentRoutes.js'
 import paymentRouter from './routes/paymentRoutes.js'
 import { authLimiter, generalLimiter, paymentLimiter } from './middleware/rateLimiter.js'
+import categoryRouter from './routes/categoryRoutes.js'
+
 const app = express()
 // app.use(cors({
 //     // origin: process.env.CLIENT_URL,
@@ -46,7 +48,8 @@ app.use('/api/payments', paymentRouter)
 app.use('/api/auth/login', authLimiter)
 app.use('/api/auth/register', authLimiter)
 app.use('/api/payments/initialize', paymentLimiter)
+app.use('/api/categories', categoryRouter)
 app.get('/api/protected', authenticate, (req, res) => {
-  res.json({ message: 'You are authenticated', user: req.user })
+
 })
 export default app

@@ -18,7 +18,7 @@ export const initializePayment = async (req, res) => {
         }
 
         const order = await prisma.order.findUnique({
-            where: { id: parseInt(orderId) },
+            where: { id: orderId },
             include: {
                 buyer: { select: { id: true, email: true, fullName: true } },
                 payment: true
@@ -49,7 +49,7 @@ export const initializePayment = async (req, res) => {
 
         // Log payment attempt
         const payment = await prisma.payment.upsert({
-            where: { orderId: parseInt(orderId) },
+            where: { orderId },
             update: {
                 paystackReference: reference,
                 attemptCount: { increment: 1 },
@@ -58,7 +58,7 @@ export const initializePayment = async (req, res) => {
                 method: order.paymentMethod
             },
             create: {
-                orderId: parseInt(orderId),
+                orderId,
                 payerId: req.user.id,
                 amount: parseFloat(order.totalPrice),
                 currency: 'GHS',
@@ -249,7 +249,7 @@ export const getPaymentStatus = async (req, res) => {
         const { orderId } = req.params
 
         const payment = await prisma.payment.findUnique({
-            where: { orderId: parseInt(orderId) },
+            where: { orderId },
             select: {
                 id: true,
                 amount: true,

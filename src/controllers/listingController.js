@@ -20,7 +20,7 @@ export const createListing = async (req, res) => {
         unit,
         location,
         listingType,
-        categoryId: categoryId ? parseInt(categoryId) : null,
+        categoryId: categoryId ?? null,
         sellerId: req.user.id
       },
       include: {
@@ -42,7 +42,7 @@ export const getAllListings = async (req, res) => {
 
     const filters = { status: 'ACTIVE' }
 
-    if (category) filters.categoryId = parseInt(category)
+    if (category) filters.categoryId = category
     if (listingType) filters.listingType = listingType
     if (location) filters.location = { contains: location, mode: 'insensitive' }
     if (search) filters.title = { contains: search, mode: 'insensitive' }
@@ -89,7 +89,7 @@ export const getListingById = async (req, res) => {
     const { id } = req.params
 
     const listing = await prisma.listing.findUnique({
-      where: { id: parseInt(id) },
+      where: { id },
       include: {
         seller: { select: { id: true, fullName: true, email: true } },
         category: true,
@@ -116,7 +116,7 @@ export const updateListing = async (req, res) => {
     const { id } = req.params
     const { title, description, pricePerUnit, quantity, quantityAvailable, unit, location, categoryId, listingType, status } = req.body
 
-    const listing = await prisma.listing.findUnique({ where: { id: parseInt(id) } })
+    const listing = await prisma.listing.findUnique({ where: { id } })
 
     if (!listing) {
       return res.status(404).json({ message: 'Listing not found' })
@@ -127,7 +127,7 @@ export const updateListing = async (req, res) => {
     }
 
     const updated = await prisma.listing.update({
-      where: { id: parseInt(id) },
+      where: { id },
       data: {
         ...(title && { title }),
         ...(description && { description }),
@@ -137,7 +137,7 @@ export const updateListing = async (req, res) => {
         ...(unit && { unit }),
         ...(location && { location }),
         ...(listingType && { listingType }),
-        ...(categoryId && { categoryId: parseInt(categoryId) }),
+        ...(categoryId && { categoryId }),
         ...(status && { status })
       },
       include: {
@@ -157,7 +157,7 @@ export const deleteListing = async (req, res) => {
   try {
     const { id } = req.params
 
-    const listing = await prisma.listing.findUnique({ where: { id: parseInt(id) } })
+    const listing = await prisma.listing.findUnique({ where: { id } })
 
     if (!listing) {
       return res.status(404).json({ message: 'Listing not found' })
@@ -167,7 +167,7 @@ export const deleteListing = async (req, res) => {
       return res.status(403).json({ message: 'You can only delete your own listings' })
     }
 
-    await prisma.listing.delete({ where: { id: parseInt(id) } })
+    await prisma.listing.delete({ where: { id } })
 
     return res.status(200).json({ message: 'Listing deleted successfully' })
   } catch (error) {
@@ -181,7 +181,7 @@ export const uploadListingImages = async (req, res) => {
   try {
     const { id } = req.params
 
-    const listing = await prisma.listing.findUnique({ where: { id: parseInt(id) } })
+    const listing = await prisma.listing.findUnique({ where: { id } })
 
     if (!listing) {
       return res.status(404).json({ message: 'Listing not found' })
@@ -202,7 +202,7 @@ export const uploadListingImages = async (req, res) => {
             imageUrl: file.path,
             isPrimary: index === 0,
             sortOrder: index,
-            listingId: parseInt(id)
+            listingId: id
           }
         })
       )
