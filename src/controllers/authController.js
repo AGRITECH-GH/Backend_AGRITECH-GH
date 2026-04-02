@@ -1,15 +1,8 @@
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import prisma from "../config/prisma.js";
-import crypto from "crypto";
-import {
-  sendVerificationEmail,
-  sendPasswordResetEmail,
-} from "../services/emailService.js";
-
-const isEmailVerificationDisabled =
-  process.env.DISABLE_EMAIL_VERIFICATION === "true";
-
+import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
+import prisma from '../config/prisma.js'
+import crypto from 'crypto'
+import { sendVerificationEmail, sendPasswordResetEmail,sendEmailChangeVerification } from '../services/emailService.js'
 export const register = async (req, res) => {
   try {
     const { fullName, email, password, role } = req.body;
@@ -465,3 +458,169 @@ export const changePassword = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+        return res.status(200).json({ message: 'Password changed successfully' })
+    } catch (error) {
+        console.error('Change password error:', error)
+        return res.status(500).json({ message: 'Internal server error' })
+    }
+}
+
+export const deleteAccount = async (req, res) => {
+    try {
+        const { password } = req.body
+
+        if (!password) {
+            return res.status(400).json({ message: 'Password is required to delete your account' })
+        }
+
+        const user = await prisma.user.findUnique({ where: { id: req.user.id } })
+
+        const isMatch = await bcrypt.compare(password, user.passwordHash)
+        if (!isMatch) {
+            return res.status(400).json({ message: 'Incorrect password' })
+        }
+
+        await prisma.user.delete({ where: { id: req.user.id } })
+
+        res.clearCookie('refreshToken', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict'
+        })
+
+        return res.status(200).json({ message: 'Account deleted successfully' })
+    } catch (error) {
+        console.error('Delete account error:', error)
+        return res.status(500).json({ message: 'Internal server error' })
+    }
+}
+
+export const editProfile = async (req, res) => {
+    try {
+        const { fullName, phoneNumber, region, bio } = req.body
+
+        const user = await prisma.user.findUnique({ where: { id: req.user.id } })
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' })
+        }
+
+        const updated = await prisma.user.update({
+            where: { id: req.user.id },
+            data: {
+                ...(fullName && { fullName }),
+                ...(phoneNumber && { phoneNumber }),
+                ...(region && { region })
+            },
+            select: {
+                id: true,
+                fullName: true,
+                email: true,
+                phoneNumber: true,
+                region: true,
+                role: true,
+                isVerified: true,
+                profilePhotoUrl: true
+            }
+        })
+
+        // If agent, update bio
+        if (bio && user.role === 'AGENT') {
+            await prisma.fieldAgent.update({
+                where: { userId: req.user.id },
+                data: { bio }
+            })
+        }
+
+        return res.status(200).json({ message: 'Profile updated successfully', user: updated })
+    } catch (error) {
+        console.error('Edit profile error:', error)
+        return res.status(500).json({ message: 'Internal server error' })
+    }
+}
+
+export const requestEmailChange = async (req, res) => {
+    try {
+        const { newEmail, password } = req.body
+
+        if (!newEmail || !password) {
+            return res.status(400).json({ message: 'New email and password are required' })
+        }
+
+        const user = await prisma.user.findUnique({ where: { id: req.user.id } })
+
+        const isMatch = await bcrypt.compare(password, user.passwordHash)
+        if (!isMatch) {
+            return res.status(400).json({ message: 'Incorrect password' })
+        }
+
+        if (newEmail === user.email) {
+            return res.status(400).json({ message: 'New email must be different from current email' })
+        }
+
+        // Check if new email is already taken
+        const existing = await prisma.user.findUnique({ where: { email: newEmail } })
+        if (existing) {
+            return res.status(409).json({ message: 'Email already in use' })
+        }
+
+        const token = crypto.randomBytes(32).toString('hex')
+        const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+
+        // Store token and pending new email
+        await prisma.user.update({
+            where: { id: req.user.id },
+            data: {
+                verificationToken: token,
+                verificationTokenExpiry: expiry
+            }
+        })
+
+        await sendEmailChangeVerification(newEmail, user.fullName, token)
+
+        return res.status(200).json({ message: 'Verification email sent to your new email address' })
+    } catch (error) {
+        console.error('Request email change error:', error)
+        return res.status(500).json({ message: 'Internal server error' })
+    }
+}
+
+export const confirmEmailChange = async (req, res) => {
+    try {
+        const { token, newEmail } = req.body
+
+        if (!token || !newEmail) {
+            return res.status(400).json({ message: 'Token and new email are required' })
+        }
+
+        const user = await prisma.user.findFirst({
+            where: {
+                verificationToken: token,
+                verificationTokenExpiry: { gt: new Date() }
+            }
+        })
+
+        if (!user) {
+            return res.status(400).json({ message: 'Invalid or expired token' })
+        }
+
+        // Check again if new email is taken
+        const existing = await prisma.user.findUnique({ where: { email: newEmail } })
+        if (existing) {
+            return res.status(409).json({ message: 'Email already in use' })
+        }
+
+        await prisma.user.update({
+            where: { id: user.id },
+            data: {
+                email: newEmail,
+                verificationToken: null,
+                verificationTokenExpiry: null
+            }
+        })
+
+        return res.status(200).json({ message: 'Email updated successfully' })
+    } catch (error) {
+        console.error('Confirm email change error:', error)
+        return res.status(500).json({ message: 'Internal server error' })
+    }
+}

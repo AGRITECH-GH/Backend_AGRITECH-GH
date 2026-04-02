@@ -9,7 +9,11 @@ import {
   resendVerification,
   forgotPassword,
   resetPassword,
-  changePassword
+  changePassword,
+  deleteAccount,
+  editProfile,
+  requestEmailChange,
+  confirmEmailChange
 } from '../controllers/authController.js'
 
 const router = Router()
@@ -23,5 +27,9 @@ router.post('/resend-verification', resendVerification)
 router.post('/forgot-password', forgotPassword)
 router.post('/reset-password', resetPassword)
 router.put('/change-password', authenticate, changePassword)
+router.delete('/delete-account', authenticate, deleteAccount)
+router.put('/edit-profile', authenticate, editProfile)
+router.post('/request-email-change', authenticate, requestEmailChange)
+router.post('/confirm-email-change', confirmEmailChange)
 
 export default router
