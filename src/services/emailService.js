@@ -67,3 +67,35 @@ export const sendPasswordResetEmail = async (email, fullName, token) => {
   console.log('Password reset email sent:', data)
 }
 
+export const sendEmailChangeVerification = async (newEmail, fullName, token) => {
+  const verifyUrl = `${process.env.CLIENT_URL}/verify-email-change?token=${token}&email=${newEmail}`
+
+  const { data, error } = await resend.emails.send({
+    from: 'AgriTech GH <no-reply@agritechgh.me>',
+    to: newEmail,
+    subject: 'Verify your new email address',
+    html: `
+      <h2>Verify your new email</h2>
+      <p>Hi ${fullName},</p>
+      <p>Click the button below to verify your new email address.</p>
+      <a href="${verifyUrl}" style="
+        background-color: #16a34a;
+        color: white;
+        padding: 12px 24px;
+        text-decoration: none;
+        border-radius: 6px;
+        display: inline-block;
+        margin: 16px 0;
+      ">Verify New Email</a>
+      <p>Or copy this link: ${verifyUrl}</p>
+      <p>This link expires in 24 hours.</p>
+      <p>If you did not request this, ignore this email.</p>
+    `
+  })
+
+  if (error) {
+    console.error('Resend error:', error)
+    throw new Error(error.message)
+  }
+}
+
