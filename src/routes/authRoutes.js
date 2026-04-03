@@ -14,7 +14,8 @@ import {
   editProfile,
   requestEmailChange,
   confirmEmailChange,
-  uploadProfilePhoto
+  uploadProfilePhoto,
+  removeProfilePhoto
 } from '../controllers/authController.js'
 import { uploadProfilePhoto as uploadPhotoMiddleware } from '../middleware/upload.js'
 
@@ -34,6 +35,7 @@ router.put('/edit-profile', authenticate, editProfile)
 router.post('/request-email-change', authenticate, requestEmailChange)
 router.post('/confirm-email-change', confirmEmailChange)
 router.post('/profile-photo', authenticate, uploadPhotoMiddleware, uploadProfilePhoto)
+router.delete('/profile-photo', authenticate, removeProfilePhoto)
 
 
 export default router
