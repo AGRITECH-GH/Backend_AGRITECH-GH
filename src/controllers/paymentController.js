@@ -77,6 +77,7 @@ export const initializePayment = async (req, res) => {
                 amount: amountInPesewas,
                 reference,
                 currency: 'GHS',
+                callback_url: process.env.PAYSTACK_CALLBACK_URL,
                 metadata: {
                     orderId: order.id,
                     buyerId: req.user.id,
