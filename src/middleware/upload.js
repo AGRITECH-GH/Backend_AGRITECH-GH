@@ -20,6 +20,18 @@ const barterStorage = new CloudinaryStorage({
     }
 })
 
+export const uploadProfilePhoto = multer({
+    storage: new CloudinaryStorage({
+        cloudinary,
+        params: {
+            folder: 'agritech/profiles',
+            allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
+            transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }]
+        }
+    }),
+    limits: { fileSize: 3 * 1024 * 1024 } // 3MB
+}).single('photo')
+
 export const uploadListingImages = multer({
     storage: listingStorage,
     limits: { fileSize: 5 * 1024 * 1024 } // 5MB

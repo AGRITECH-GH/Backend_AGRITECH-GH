@@ -1,8 +1,9 @@
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import prisma from '../config/prisma.js'
+import cloudinary from '../config/cloudinary.js'
 import crypto from 'crypto'
-import { sendVerificationEmail, sendPasswordResetEmail,sendEmailChangeVerification } from '../services/emailService.js'
+import { sendVerificationEmail, sendPasswordResetEmail, sendEmailChangeVerification } from '../services/emailService.js'
 export const register = async (req, res) => {
   try {
     const { fullName, email, password, role } = req.body;
@@ -617,4 +618,52 @@ export const confirmEmailChange = async (req, res) => {
         console.error('Confirm email change error:', error)
         return res.status(500).json({ message: 'Internal server error' })
     }
+}
+
+export const uploadProfilePhoto = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'No photo uploaded' })
+        }
+
+        const updated = await prisma.user.update({
+            where: { id: req.user.id },
+            data: { profilePhotoUrl: req.file.path },
+            select: {
+                id: true,
+                fullName: true,
+                email: true,
+                profilePhotoUrl: true
+            }
+        })
+
+        return res.status(200).json({ message: 'Profile photo updated successfully', user: updated })
+    } catch (error) {
+        console.error('Upload profile photo error:', error)
+        return res.status(500).json({ message: 'Internal server error' })
+    }
+}
+
+export const removeProfilePhoto = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: req.user.id } })
+
+    if (!user.profilePhotoUrl) {
+      return res.status(400).json({ message: 'No profile photo to remove' })
+    }
+
+    // Delete from Cloudinary
+    const publicId = user.profilePhotoUrl.split('/').slice(-1)[0].split('.')[0]
+    await cloudinary.uploader.destroy(`agritech/profiles/${publicId}`)
+
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { profilePhotoUrl: null }
+    })
+
+    return res.status(200).json({ message: 'Profile photo removed successfully' })
+  } catch (error) {
+    console.error('Remove profile photo error:', error)
+    return res.status(500).json({ message: 'Internal server error' })
+  }
 }
