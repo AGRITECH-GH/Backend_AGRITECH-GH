@@ -91,7 +91,8 @@ export const register = async (req, res) => {
                 fullName: user.fullName,
                 email: user.email,
                 role: user.role,
-                isVerified: user.isVerified
+                isVerified: user.isVerified,
+                profilePhotoUrl: user.profilePhotoUrl
             }
         })
     } catch (error) {
@@ -252,7 +253,8 @@ export const login = async (req, res) => {
                 fullName: user.fullName,
                 email: user.email,
                 role: user.role,
-                isVerified: user.isVerified
+                isVerified: user.isVerified,
+                profilePhotoUrl: user.profilePhotoUrl
             }
         })
     } catch (error) {
@@ -591,25 +593,25 @@ export const uploadProfilePhoto = async (req, res) => {
 }
 
 export const removeProfilePhoto = async (req, res) => {
-  try {
-    const user = await prisma.user.findUnique({ where: { id: req.user.id } })
+    try {
+        const user = await prisma.user.findUnique({ where: { id: req.user.id } })
 
-    if (!user.profilePhotoUrl) {
-      return res.status(400).json({ message: 'No profile photo to remove' })
+        if (!user.profilePhotoUrl) {
+            return res.status(400).json({ message: 'No profile photo to remove' })
+        }
+
+        // Delete from Cloudinary
+        const publicId = user.profilePhotoUrl.split('/').slice(-1)[0].split('.')[0]
+        await cloudinary.uploader.destroy(`agritech/profiles/${publicId}`)
+
+        await prisma.user.update({
+            where: { id: req.user.id },
+            data: { profilePhotoUrl: null }
+        })
+
+        return res.status(200).json({ message: 'Profile photo removed successfully' })
+    } catch (error) {
+        console.error('Remove profile photo error:', error)
+        return res.status(500).json({ message: 'Internal server error' })
     }
-
-    // Delete from Cloudinary
-    const publicId = user.profilePhotoUrl.split('/').slice(-1)[0].split('.')[0]
-    await cloudinary.uploader.destroy(`agritech/profiles/${publicId}`)
-
-    await prisma.user.update({
-      where: { id: req.user.id },
-      data: { profilePhotoUrl: null }
-    })
-
-    return res.status(200).json({ message: 'Profile photo removed successfully' })
-  } catch (error) {
-    console.error('Remove profile photo error:', error)
-    return res.status(500).json({ message: 'Internal server error' })
-  }
 }

@@ -19,10 +19,14 @@ const app = express()
 //     origin: 'http://localhost:5173',
 //     credentials: true
 // }))
+// app.use(cors({
+//   origin: (origin, callback) => {
+//     callback(null, process.env.CLIENT_URL)
+//   },
+//   credentials: true
+// }))
 app.use(cors({
-  origin: (origin, callback) => {
-    callback(null, process.env.CLIENT_URL)
-  },
+  origin: [process.env.CLIENT_URL, 'http://localhost:5173'],
   credentials: true
 }))
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }))
