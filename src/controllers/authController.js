@@ -1,9 +1,10 @@
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import prisma from '../config/prisma.js'
 import cloudinary from '../config/cloudinary.js'
 import crypto from 'crypto'
 import { sendVerificationEmail, sendPasswordResetEmail, sendEmailChangeVerification } from '../services/emailService.js'
+import passport from '../config/passport.js'
+import jwt from 'jsonwebtoken'
 export const register = async (req, res) => {
     try {
         const { fullName, email, password, role } = req.body
@@ -612,6 +613,81 @@ export const removeProfilePhoto = async (req, res) => {
         return res.status(200).json({ message: 'Profile photo removed successfully' })
     } catch (error) {
         console.error('Remove profile photo error:', error)
+        return res.status(500).json({ message: 'Internal server error' })
+    }
+}
+
+export const googleAuth = passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    session: false
+})
+
+export const googleCallbackMiddleware = passport.authenticate('google', {
+    session: false,
+    failureRedirect: `${process.env.CLIENT_URL}/login?error=google_failed`
+})
+
+// In-memory store for one-time codes
+const googleAuthCodes = new Map()
+
+export const googleCallbackHandler = async (req, res) => {
+    try {
+        const user = req.user
+
+        const accessToken = jwt.sign(
+            { id: user.id, role: user.role, isVerified: user.isVerified },
+            process.env.JWT_ACCESS_SECRET,
+            { expiresIn: '15m' }
+        )
+
+        const refreshToken = jwt.sign(
+            { id: user.id, role: user.role },
+            process.env.JWT_REFRESH_SECRET,
+            { expiresIn: '7d' }
+        )
+
+        // Generate one-time code
+        const code = crypto.randomBytes(32).toString('hex')
+
+        // Store tokens against code for 60 seconds
+        googleAuthCodes.set(code, { accessToken, refreshToken, userId: user.id })
+        setTimeout(() => googleAuthCodes.delete(code), 60 * 1000)
+
+        // Redirect with code only — not the token
+        return res.redirect(`${process.env.CLIENT_URL}/auth/google/success?code=${code}`)
+    } catch (error) {
+        console.error('Google callback error:', error)
+        return res.redirect(`${process.env.CLIENT_URL}/login?error=google_failed`)
+    }
+}
+
+export const exchangeGoogleCode = async (req, res) => {
+    try {
+        const { code } = req.body
+
+        if (!code) {
+            return res.status(400).json({ message: 'Code is required' })
+        }
+
+        const data = googleAuthCodes.get(code)
+
+        if (!data) {
+            return res.status(400).json({ message: 'Invalid or expired code' })
+        }
+
+        // Delete code immediately after use
+        googleAuthCodes.delete(code)
+
+        res.cookie('refreshToken', data.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        })
+
+        return res.status(200).json({ accessToken: data.accessToken })
+    } catch (error) {
+        console.error('Exchange code error:', error)
         return res.status(500).json({ message: 'Internal server error' })
     }
 }
