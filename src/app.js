@@ -12,6 +12,7 @@ import agentRouter from './routes/agentRoutes.js'
 import paymentRouter from './routes/paymentRoutes.js'
 import { authLimiter, generalLimiter, paymentLimiter } from './middleware/rateLimiter.js'
 import categoryRouter from './routes/categoryRoutes.js'
+import passport from './config/passport.js'
 
 const app = express()
 // app.use(cors({
@@ -19,15 +20,21 @@ const app = express()
 //     origin: 'http://localhost:5173',
 //     credentials: true
 // }))
+// app.use(cors({
+//   origin: (origin, callback) => {
+//     callback(null, process.env.CLIENT_URL)
+//   },
+//   credentials: true
+// }))
 app.use(cors({
-  origin: (origin, callback) => {
-    callback(null, process.env.CLIENT_URL)
-  },
+  origin: [process.env.CLIENT_URL, 'http://localhost:5173'],
   credentials: true
 }))
+console.log('CORS Origin:', process.env.CLIENT_URL)
 app.use('/api/payments/webhook', express.raw({ type: 'application/json' }))
 app.use(express.json())
 app.use(cookieParser())
+app.use(passport.initialize())
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`)
   next()
@@ -49,7 +56,6 @@ app.use('/api/auth/login', authLimiter)
 app.use('/api/auth/register', authLimiter)
 app.use('/api/payments/initialize', paymentLimiter)
 app.use('/api/categories', categoryRouter)
-app.get('/api/protected', authenticate, (req, res) => {
+app.get('/api/protected', authenticate, (req, res) => {})
 
-})
 export default app
