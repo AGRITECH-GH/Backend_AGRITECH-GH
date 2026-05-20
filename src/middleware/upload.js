@@ -41,3 +41,20 @@ export const uploadBarterImages = multer({
     storage: barterStorage,
     limits: { fileSize: 5 * 1024 * 1024 }
 }).array('images', 3)
+
+export const uploadKYCDocuments = multer({
+    storage: new CloudinaryStorage({
+        cloudinary,
+        params: {
+            folder: 'agritech/kyc',
+            allowed_formats: ['jpg', 'jpeg', 'png', 'webp', 'pdf'],
+            resource_type: 'auto',
+            transformation: [{ width: 1000, crop: 'limit' }]
+        }
+    }),
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB per document
+}).fields([
+    { name: 'nationalId', maxCount: 1 },
+    { name: 'farmRegistration', maxCount: 1 },
+    { name: 'businessCertificate', maxCount: 1 }
+])

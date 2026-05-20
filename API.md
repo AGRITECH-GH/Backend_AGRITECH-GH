@@ -32,6 +32,8 @@ Authorization: Bearer <accessToken>
 `POST /api/auth/register`  
 Public. Creates a new user account.
 
+**Content-Type:** `multipart/form-data` (for FARMER role with file uploads)
+
 **Body:**
 ```json
 {
@@ -43,6 +45,15 @@ Public. Creates a new user account.
 ```
 
 Roles: `FARMER`, `BUYER`, `AGENT`, `ADMIN`
+
+For `FARMER` role, also include:
+| Field | Type | Description |
+|-------|------|-------------|
+| `nationalId` | file | National ID document (image or PDF) |
+| `farmRegistration` | file | Farm registration document (image or PDF) |
+| `businessCertificate` | file | Business certificate document (image or PDF) |
+
+KYC files are automatically uploaded to Cloudinary and stored as image URLs. KYC status starts as `PENDING` and requires admin approval.
 
 For `AGENT` role, also include:
 ```json
@@ -63,7 +74,8 @@ For `AGENT` role, also include:
     "fullName": "Kofi Mensah",
     "email": "kofi@example.com",
     "role": "FARMER",
-    "isVerified": false
+    "isVerified": false,
+    "kycStatus": "PENDING"
   }
 }
 ```
@@ -945,7 +957,9 @@ Protected.
 ### Register Farmer (as Agent)
 `POST /api/agents/register-farmer`  
 Protected. Role: `AGENT`  
-Agent registers a farmer on their behalf. Farmer is automatically pre-verified.
+Agent registers a farmer on their behalf. Farmer KYC documents are submitted for admin approval.
+
+**Content-Type:** `multipart/form-data`
 
 **Body:**
 ```json
@@ -958,16 +972,25 @@ Agent registers a farmer on their behalf. Farmer is automatically pre-verified.
 }
 ```
 
+**Files:** (Required)
+| Field | Type | Description |
+|-------|------|-------------|
+| `nationalId` | file | National ID document (image or PDF) |
+| `farmRegistration` | file | Farm registration document (image or PDF) |
+| `businessCertificate` | file | Business certificate document (image or PDF) |
+
 **Response `201`:**
 ```json
 {
-  "message": "Farmer registered successfully",
+  "message": "Farmer registered successfully. KYC documents pending admin approval.",
   "farmer": {
     "id": "cmngu98m3...",
     "fullName": "Yaw Farmer",
     "email": "yaw@example.com",
     "role": "FARMER",
-    "isVerified": true
+    "isVerified": true,
+    "kycStatus": "PENDING",
+    "kycSubmittedAt": "2025-12-10T14:30:00Z"
   }
 }
 ```
@@ -1149,6 +1172,111 @@ Same as public `GET /api/categories` but accessible from admin panel.
 ```
 
 > Use `isActive: false` to hide a category from listings.
+
+---
+
+## KYC Management (Admin)
+
+> All KYC endpoints require `ADMIN` role.
+
+### Get Pending KYC Submissions
+`GET /api/admin/kyc/pending`
+
+Retrieves all farmers with pending KYC approval.
+
+**Query params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `page` | number | Page number (default: 1) |
+| `limit` | number | Results per page (default: 20) |
+
+**Response `200`:**
+```json
+{
+  "pending": [
+    {
+      "id": "user-id-123",
+      "fullName": "Kwame Nkrumah",
+      "email": "kwame@example.com",
+      "nationalIdImageUrl": "https://res.cloudinary.com/...",
+      "farmRegistrationImageUrl": "https://res.cloudinary.com/...",
+      "businessCertificateImageUrl": "https://res.cloudinary.com/...",
+      "kycStatus": "PENDING",
+      "kycSubmittedAt": "2025-12-10T14:30:00Z"
+    }
+  ],
+  "total": 5,
+  "page": 1
+}
+```
+
+---
+
+### Get KYC Status
+`GET /api/admin/kyc/:userId`
+
+Retrieves KYC information for a specific farmer.
+
+**Response `200`:**
+```json
+{
+  "id": "user-id-123",
+  "fullName": "Kwame Nkrumah",
+  "email": "kwame@example.com",
+  "nationalIdImageUrl": "https://res.cloudinary.com/...",
+  "farmRegistrationImageUrl": "https://res.cloudinary.com/...",
+  "businessCertificateImageUrl": "https://res.cloudinary.com/...",
+  "kycStatus": "PENDING",
+  "kycSubmittedAt": "2025-12-10T14:30:00Z",
+  "kycApprovedAt": null,
+  "kycRejectReason": null
+}
+```
+
+---
+
+### Approve KYC
+`PUT /api/admin/kyc/:userId/approve`
+
+Approves a farmer's KYC documents.
+
+**Response `200`:**
+```json
+{
+  "message": "KYC approved successfully",
+  "user": {
+    "id": "user-id-123",
+    "kycStatus": "APPROVED",
+    "kycApprovedAt": "2025-12-10T15:00:00Z"
+  }
+}
+```
+
+---
+
+### Reject KYC
+`PUT /api/admin/kyc/:userId/reject`
+
+Rejects a farmer's KYC documents with a reason.
+
+**Body:**
+```json
+{
+  "reason": "National ID image is unclear"
+}
+```
+
+**Response `200`:**
+```json
+{
+  "message": "KYC rejected successfully",
+  "user": {
+    "id": "user-id-123",
+    "kycStatus": "REJECTED",
+    "kycRejectReason": "National ID image is unclear"
+  }
+}
+```
 
 ---
 

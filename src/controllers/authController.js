@@ -9,9 +9,21 @@ import {
 } from "../services/emailService.js";
 import passport from "../config/passport.js";
 import jwt from "jsonwebtoken";
+
+const isEmailVerificationDisabled =
+  process.env.DISABLE_EMAIL_VERIFICATION === "true";
+
 export const register = async (req, res) => {
   try {
-    const { fullName, email, password, role } = req.body;
+    const {
+      fullName,
+      email,
+      password,
+      role,
+      nationalIdNumber,
+      farmRegistrationNumber,
+      businessCertificateNumber,
+    } = req.body;
     const requiredFields = { fullName, email, password, role };
     const missingFields = Object.keys(requiredFields).filter(
       (key) => !requiredFields[key],
@@ -37,6 +49,24 @@ export const register = async (req, res) => {
         message: "Email already exists",
       });
     }
+
+    const normalizedRole = String(role || "")
+      .trim()
+      .toUpperCase();
+    if (normalizedRole === "FARMER") {
+      // Check for required KYC documents
+      if (
+        !req.files?.nationalId?.[0] ||
+        !req.files?.farmRegistration?.[0] ||
+        !req.files?.businessCertificate?.[0]
+      ) {
+        return res.status(400).json({
+          message:
+            "All three KYC documents are required for farmers: National ID, Farm Registration, and Business Certificate",
+        });
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12);
 
     const user = await prisma.user.create({
@@ -45,6 +75,18 @@ export const register = async (req, res) => {
         email: email,
         passwordHash: hashedPassword,
         role: role,
+        nationalIdImageUrl:
+          normalizedRole === "FARMER" ? req.files.nationalId[0].path : null,
+        farmRegistrationImageUrl:
+          normalizedRole === "FARMER"
+            ? req.files.farmRegistration[0].path
+            : null,
+        businessCertificateImageUrl:
+          normalizedRole === "FARMER"
+            ? req.files.businessCertificate[0].path
+            : null,
+        kycStatus: normalizedRole === "FARMER" ? "PENDING" : "APPROVED",
+        kycSubmittedAt: normalizedRole === "FARMER" ? new Date() : null,
         isVerified: isEmailVerificationDisabled,
       },
     });

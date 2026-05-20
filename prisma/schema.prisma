@@ -16,6 +16,17 @@ model User {
   passwordHash    String    @db.VarChar(255)
   role            Role      @default(FARMER)
   region          String?   @db.VarChar(100)
+  nationalIdImageUrl        String?   @db.VarChar(500)
+  farmRegistrationImageUrl  String?   @db.VarChar(500)
+  businessCertificateImageUrl String? @db.VarChar(500)
+  kycStatus       KYCStatus   @default(PENDING)
+  kycRejectReason String?
+  kycSubmittedAt  DateTime?
+  kycApprovedAt   DateTime?
+  kycEmailLastSentAt DateTime?
+  kycEmailLastStatus KYCStatus?
+  kycEmailLastAction String?   @db.VarChar(20)
+  kycEmailLastError  String?
   profilePhotoUrl String?   @db.VarChar(300)
   isVerified      Boolean   @default(false)
   isActive        Boolean   @default(true)
@@ -48,6 +59,12 @@ enum Role {
   BUYER
   AGENT
   ADMIN
+}
+
+enum KYCStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 model Farm {
