@@ -70,8 +70,7 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// 4. Explicitly catch and respond to preflight OPTIONS requests across all paths
-app.options("*", cors(corsOptions));
+
 
 console.log("Configured CORS Allowed Origins:", allowedOrigins);
 
