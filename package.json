@@ -6,7 +6,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon --experimental-specifier-resolution=node src/server.js",
-    "seed": "node --experimental-specifier-resolution=node prisma/seed.js"
+    "seed": "node --experimental-specifier-resolution=node prisma/seed.js",
+    "build": "prisma migrate deploy", 
+    "postinstall": "prisma generate"
   },
   "repository": {
     "type": "git",
@@ -37,9 +39,11 @@
     "passport-google-oauth20": "^2.0.0",
     "pg": "^8.19.0",
     "prisma": "^5.22.0",
+    "pusher": "^5.3.3",
     "resend": "^6.9.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
   }
+  
 }

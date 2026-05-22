@@ -1,9 +1,10 @@
-# AgriTech GH — Backend API Documentation
+# FarmBridge GH — Backend API Documentation
 
 Base URL (Development): `http://localhost:8000`  
-Base URL (Production): `https://api.agritechgh.me`
+Base URL (Production): `https://api.FarmBridgegh.me`
 
 All protected routes require a Bearer token in the Authorization header:
+
 ```
 Authorization: Bearer <accessToken>
 ```
@@ -11,6 +12,7 @@ Authorization: Bearer <accessToken>
 ---
 
 ## Table of Contents
+
 - [Auth](#auth)
 - [Listings](#listings)
 - [Cart](#cart)
@@ -29,10 +31,14 @@ Authorization: Bearer <accessToken>
 ## Auth
 
 ### Register
+
 `POST /api/auth/register`  
 Public. Creates a new user account.
 
+**Content-Type:** `multipart/form-data` (for FARMER role with file uploads)
+
 **Body:**
+
 ```json
 {
   "fullName": "Kofi Mensah",
@@ -44,7 +50,17 @@ Public. Creates a new user account.
 
 Roles: `FARMER`, `BUYER`, `AGENT`, `ADMIN`
 
+For `FARMER` role, also include:
+| Field | Type | Description |
+|-------|------|-------------|
+| `nationalId` | file | National ID document (image or PDF) |
+| `farmRegistration` | file | Farm registration document (image or PDF) |
+| `businessCertificate` | file | Business certificate document (image or PDF) |
+
+KYC files are automatically uploaded to Cloudinary and stored as image URLs. KYC status starts as `PENDING` and requires admin approval.
+
 For `AGENT` role, also include:
+
 ```json
 {
   "assignedRegion": "Greater Accra",
@@ -54,6 +70,7 @@ For `AGENT` role, also include:
 ```
 
 **Response `201`:**
+
 ```json
 {
   "message": "Account created successfully",
@@ -63,7 +80,8 @@ For `AGENT` role, also include:
     "fullName": "Kofi Mensah",
     "email": "kofi@example.com",
     "role": "FARMER",
-    "isVerified": false
+    "isVerified": false,
+    "kycStatus": "PENDING"
   }
 }
 ```
@@ -71,10 +89,12 @@ For `AGENT` role, also include:
 ---
 
 ### Login
+
 `POST /api/auth/login`  
 Public.
 
 **Body:**
+
 ```json
 {
   "email": "kofi@example.com",
@@ -84,6 +104,7 @@ Public.
 ```
 
 **Response `200`:**
+
 ```json
 {
   "message": "Login successful",
@@ -103,10 +124,12 @@ Public.
 ---
 
 ### Refresh Token
+
 `POST /api/auth/refresh`  
 Public. Uses the httpOnly refresh token cookie to issue a new access token.
 
 **Response `200`:**
+
 ```json
 {
   "accessToken": "eyJ..."
@@ -116,10 +139,12 @@ Public. Uses the httpOnly refresh token cookie to issue a new access token.
 ---
 
 ### Logout
+
 `POST /api/auth/logout`  
 Public. Clears the refresh token cookie.
 
 **Response `200`:**
+
 ```json
 {
   "message": "Logged out successfully"
@@ -129,10 +154,12 @@ Public. Clears the refresh token cookie.
 ---
 
 ### Verify Email
+
 `POST /api/auth/verify-email`  
 Public. Verifies a user's email using the token from the verification email.
 
 **Body:**
+
 ```json
 {
   "token": "abc123..."
@@ -140,6 +167,7 @@ Public. Verifies a user's email using the token from the verification email.
 ```
 
 **Response `200`:**
+
 ```json
 {
   "message": "Email verified successfully",
@@ -153,10 +181,12 @@ Public. Verifies a user's email using the token from the verification email.
 ---
 
 ### Resend Verification Email
+
 `POST /api/auth/resend-verification`  
 Public.
 
 **Body:**
+
 ```json
 {
   "email": "kofi@example.com"
@@ -164,6 +194,7 @@ Public.
 ```
 
 **Response `200`:**
+
 ```json
 {
   "message": "If that email exists, a verification link has been sent"
@@ -173,10 +204,12 @@ Public.
 ---
 
 ### Forgot Password
+
 `POST /api/auth/forgot-password`  
 Public. Sends a password reset link to the user's email.
 
 **Body:**
+
 ```json
 {
   "email": "kofi@example.com"
@@ -184,6 +217,7 @@ Public. Sends a password reset link to the user's email.
 ```
 
 **Response `200`:**
+
 ```json
 {
   "message": "If that email exists, a reset link has been sent"
@@ -193,10 +227,12 @@ Public. Sends a password reset link to the user's email.
 ---
 
 ### Reset Password
+
 `POST /api/auth/reset-password`  
 Public. Uses token from the password reset email.
 
 **Body:**
+
 ```json
 {
   "token": "abc123...",
@@ -205,6 +241,7 @@ Public. Uses token from the password reset email.
 ```
 
 **Response `200`:**
+
 ```json
 {
   "message": "Password reset successfully"
@@ -214,10 +251,12 @@ Public. Uses token from the password reset email.
 ---
 
 ### Change Password
+
 `PUT /api/auth/change-password`  
 Protected. For logged-in users who know their current password.
 
 **Body:**
+
 ```json
 {
   "currentPassword": "oldpassword1",
@@ -226,6 +265,7 @@ Protected. For logged-in users who know their current password.
 ```
 
 **Response `200`:**
+
 ```json
 {
   "message": "Password changed successfully"
@@ -235,10 +275,12 @@ Protected. For logged-in users who know their current password.
 ---
 
 ### Edit Profile
+
 `PUT /api/auth/edit-profile`  
 Protected. All roles. Updates name, phone, region, and bio.
 
 **Body (all optional):**
+
 ```json
 {
   "fullName": "Kofi Mensah Updated",
@@ -249,6 +291,7 @@ Protected. All roles. Updates name, phone, region, and bio.
 ```
 
 **Response `200`:**
+
 ```json
 {
   "message": "Profile updated successfully",
@@ -268,6 +311,7 @@ Protected. All roles. Updates name, phone, region, and bio.
 ---
 
 ### Upload Profile Photo
+
 `POST /api/auth/profile-photo`  
 Protected. All roles.
 
@@ -277,6 +321,7 @@ Protected. All roles.
 | `photo` | File | Single image (jpg, jpeg, png, webp). Max 3MB. |
 
 **Response `200`:**
+
 ```json
 {
   "message": "Profile photo updated successfully",
@@ -294,10 +339,12 @@ Protected. All roles.
 ---
 
 ### Remove Profile Photo
+
 `DELETE /api/auth/profile-photo`  
 Protected. All roles.
 
 **Response `200`:**
+
 ```json
 {
   "message": "Profile photo removed successfully"
@@ -307,10 +354,12 @@ Protected. All roles.
 ---
 
 ### Request Email Change
+
 `POST /api/auth/request-email-change`  
 Protected. Sends a verification email to the new email address.
 
 **Body:**
+
 ```json
 {
   "newEmail": "newemail@example.com",
@@ -319,6 +368,7 @@ Protected. Sends a verification email to the new email address.
 ```
 
 **Response `200`:**
+
 ```json
 {
   "message": "Verification email sent to your new email address"
@@ -330,10 +380,12 @@ Protected. Sends a verification email to the new email address.
 ---
 
 ### Confirm Email Change
+
 `POST /api/auth/confirm-email-change`  
 Public. Called when user clicks the link in the verification email.
 
 **Body:**
+
 ```json
 {
   "token": "abc123...",
@@ -342,6 +394,7 @@ Public. Called when user clicks the link in the verification email.
 ```
 
 **Response `200`:**
+
 ```json
 {
   "message": "Email updated successfully"
@@ -353,10 +406,12 @@ Public. Called when user clicks the link in the verification email.
 ---
 
 ### Delete Account
+
 `DELETE /api/auth/delete-account`  
 Protected. User deletes their own account. Requires password confirmation.
 
 **Body:**
+
 ```json
 {
   "password": "mypassword1"
@@ -364,6 +419,7 @@ Protected. User deletes their own account. Requires password confirmation.
 ```
 
 **Response `200`:**
+
 ```json
 {
   "message": "Account deleted successfully"
@@ -377,11 +433,13 @@ Protected. User deletes their own account. Requires password confirmation.
 ## Listings
 
 ### Create Listing
+
 `POST /api/listings`  
 Protected. Roles: `FARMER`, `AGENT`  
 ⚠️ Email must be verified.
 
 **Body:**
+
 ```json
 {
   "title": "Fresh Tomatoes",
@@ -400,6 +458,7 @@ Units: `KG`, `BAG`, `CRATE`, `PIECE`, `LITRE`, `BUNDLE`
 Listing types: `SELL`, `BARTER`, `BOTH`
 
 **Response `201`:**
+
 ```json
 {
   "message": "Listing created successfully",
@@ -410,6 +469,7 @@ Listing types: `SELL`, `BARTER`, `BOTH`
 ---
 
 ### Get All Listings
+
 `GET /api/listings`  
 Public.
 
@@ -426,6 +486,7 @@ Public.
 | `limit` | number | Results per page (default: 20) |
 
 **Response `200`:**
+
 ```json
 {
   "listings": [ ... ],
@@ -441,10 +502,12 @@ Public.
 ---
 
 ### Get Single Listing
+
 `GET /api/listings/:id`  
 Public.
 
 **Response `200`:**
+
 ```json
 {
   "listing": {
@@ -467,10 +530,12 @@ Public.
 ---
 
 ### Update Listing
+
 `PUT /api/listings/:id`  
 Protected. Roles: `FARMER`, `AGENT`. Owner only.
 
 **Body (all optional):**
+
 ```json
 {
   "title": "Updated Title",
@@ -485,10 +550,12 @@ Statuses: `ACTIVE`, `SOLD`, `EXPIRED`, `PAUSED`
 ---
 
 ### Delete Listing
+
 `DELETE /api/listings/:id`  
 Protected. Roles: `FARMER`, `AGENT`. Owner only.
 
 **Response `200`:**
+
 ```json
 {
   "message": "Listing deleted successfully"
@@ -498,6 +565,7 @@ Protected. Roles: `FARMER`, `AGENT`. Owner only.
 ---
 
 ### Upload Listing Images
+
 `POST /api/listings/:id/images`  
 Protected. Roles: `FARMER`, `AGENT`. Owner only.
 
@@ -507,6 +575,7 @@ Protected. Roles: `FARMER`, `AGENT`. Owner only.
 | `images` | File | Up to 5 images (jpg, jpeg, png, webp). Max 5MB each. |
 
 **Response `201`:**
+
 ```json
 {
   "message": "Images uploaded successfully",
@@ -530,10 +599,12 @@ Protected. Roles: `FARMER`, `AGENT`. Owner only.
 > Cart is for `BUYER` role only.
 
 ### Get Cart
+
 `GET /api/cart`  
 Protected. Role: `BUYER`
 
 **Response `200`:**
+
 ```json
 {
   "cart": {
@@ -561,10 +632,12 @@ Protected. Role: `BUYER`
 ---
 
 ### Add Item to Cart
+
 `POST /api/cart/items`  
 Protected. Role: `BUYER`
 
 **Body:**
+
 ```json
 {
   "listingId": "cmngu98m3...",
@@ -577,10 +650,12 @@ Protected. Role: `BUYER`
 ---
 
 ### Remove Item from Cart
+
 `DELETE /api/cart/items/:listingId`  
 Protected. Role: `BUYER`
 
 **Response `200`:**
+
 ```json
 {
   "message": "Item removed from cart"
@@ -590,10 +665,12 @@ Protected. Role: `BUYER`
 ---
 
 ### Clear Cart
+
 `DELETE /api/cart`  
 Protected. Role: `BUYER`
 
 **Response `200`:**
+
 ```json
 {
   "message": "Cart cleared"
@@ -603,11 +680,13 @@ Protected. Role: `BUYER`
 ---
 
 ### Validate Cart
+
 `GET /api/cart/validate`  
 Protected. Role: `BUYER`  
 Call this before checkout to check for issues (price changes, out of stock, inactive listings).
 
 **Response `200` (no issues):**
+
 ```json
 {
   "valid": true,
@@ -617,6 +696,7 @@ Call this before checkout to check for issues (price changes, out of stock, inac
 ```
 
 **Response `200` (with issues):**
+
 ```json
 {
   "valid": false,
@@ -638,12 +718,14 @@ Call this before checkout to check for issues (price changes, out of stock, inac
 ## Orders
 
 ### Place Order (Checkout)
+
 `POST /api/orders`  
 Protected. Role: `BUYER`  
 Email must be verified.  
 Places an order for all items currently in cart. Cart is cleared automatically after successful order.
 
 **Body:**
+
 ```json
 {
   "paymentMethod": "CASH",
@@ -655,6 +737,7 @@ Places an order for all items currently in cart. Cart is cleared automatically a
 Payment methods: `MOMO`, `CASH`, `BARTER`, `CREDIT`
 
 **Response `201`:**
+
 ```json
 {
   "message": "Order placed successfully",
@@ -681,6 +764,7 @@ Payment methods: `MOMO`, `CASH`, `BARTER`, `CREDIT`
 ---
 
 ### Get My Orders
+
 `GET /api/orders`  
 Protected. All roles.
 
@@ -698,16 +782,19 @@ Protected. All roles.
 ---
 
 ### Get Order by ID
+
 `GET /api/orders/:id`  
 Protected. Accessible by buyer, seller, assigned agent, or admin only.
 
 ---
 
 ### Update Order Status
+
 `PUT /api/orders/:id/status`  
 Protected.
 
 **Body:**
+
 ```json
 {
   "status": "CONFIRMED"
@@ -721,6 +808,7 @@ Protected.
 | `BUYER` | `CANCELLED` (only if current status is `PENDING`) |
 
 **Order lifecycle:**
+
 ```
 PENDING → CONFIRMED → DISPATCHED → DELIVERED
                 ↘ CANCELLED
@@ -733,10 +821,12 @@ PENDING → CONFIRMED → DISPATCHED → DELIVERED
 ## Barter
 
 ### Create Barter Request
+
 `POST /api/barter`  
 Protected.
 
 **Body (buyer offering description):**
+
 ```json
 {
   "targetListingId": "cmngu98m3...",
@@ -747,6 +837,7 @@ Protected.
 ```
 
 **Body (farmer-to-farmer offering a listing):**
+
 ```json
 {
   "targetListingId": "cmngu98m3...",
@@ -756,6 +847,7 @@ Protected.
 ```
 
 **Response `201`:**
+
 ```json
 {
   "message": "Barter request sent",
@@ -774,6 +866,7 @@ Protected.
 ---
 
 ### Get My Barter Requests
+
 `GET /api/barter`  
 Protected. Returns requests you sent AND requests for your listings.
 
@@ -785,22 +878,25 @@ Protected. Returns requests you sent AND requests for your listings.
 ---
 
 ### Update Barter Status
+
 `PUT /api/barter/:id`  
 Protected.
 
 **Body:**
+
 ```json
 {
   "status": "ACCEPTED"
 }
 ```
 
-| Role | Allowed statuses |
-|------|---------|
+| Role                   | Allowed statuses       |
+| ---------------------- | ---------------------- |
 | Listing owner (farmer) | `ACCEPTED`, `REJECTED` |
-| Requester | `CANCELLED` |
+| Requester              | `CANCELLED`            |
 
 **Response `200`:**
+
 ```json
 {
   "message": "Barter request accepted",
@@ -815,6 +911,7 @@ Protected.
 ---
 
 ### Upload Barter Images
+
 `POST /api/barter/:id/images`  
 Protected. Requester only. Upload images of the item being offered.
 
@@ -828,10 +925,12 @@ Protected. Requester only. Upload images of the item being offered.
 ## Payments
 
 ### Initialize Payment
+
 `POST /api/payments/initialize`  
 Protected. Role: `BUYER`
 
 **Body:**
+
 ```json
 {
   "orderId": "cmngu98m3..."
@@ -839,6 +938,7 @@ Protected. Role: `BUYER`
 ```
 
 **Response `200`:**
+
 ```json
 {
   "message": "Payment initialized",
@@ -850,17 +950,19 @@ Protected. Role: `BUYER`
 ```
 
 > Redirect user to `paymentUrl` to complete payment on Paystack's secure page.  
-> After payment, Paystack redirects to `https://agritechgh.me/payment/callback?reference=AGRI-xxx`.  
+> After payment, Paystack redirects to `https://FarmBridgegh.me/payment/callback?reference=AGRI-xxx`.  
 > Read the `reference` from the URL and call the verify endpoint.
 
 ---
 
 ### Verify Payment
+
 `GET /api/payments/verify/:reference`  
 Protected. Role: `BUYER`  
 Call this after user returns from Paystack checkout page.
 
 **Response `200`:**
+
 ```json
 {
   "message": "Payment verified successfully",
@@ -869,6 +971,7 @@ Call this after user returns from Paystack checkout page.
 ```
 
 **Response `400` (payment failed):**
+
 ```json
 {
   "message": "Payment failed",
@@ -879,10 +982,12 @@ Call this after user returns from Paystack checkout page.
 ---
 
 ### Get Payment Status
+
 `GET /api/payments/order/:orderId`  
 Protected.
 
 **Response `200`:**
+
 ```json
 {
   "payment": {
@@ -900,6 +1005,7 @@ Protected.
 ---
 
 ### Paystack Webhook
+
 `POST /api/payments/webhook`  
 Public — Paystack only. **Do not call this from the frontend.**
 
@@ -908,11 +1014,13 @@ Public — Paystack only. **Do not call this from the frontend.**
 ## Agents
 
 ### Register as Agent
+
 `POST /api/agents/register`  
 Protected. Role: `AGENT`  
 Creates an agent profile for an already-registered AGENT user.
 
 **Body:**
+
 ```json
 {
   "assignedRegion": "Greater Accra",
@@ -924,6 +1032,7 @@ Creates an agent profile for an already-registered AGENT user.
 ---
 
 ### Get All Agents
+
 `GET /api/agents`  
 Protected.
 
@@ -937,17 +1046,22 @@ Protected.
 ---
 
 ### Get Agent by ID
+
 `GET /api/agents/:id`  
 Protected.
 
 ---
 
 ### Register Farmer (as Agent)
+
 `POST /api/agents/register-farmer`  
 Protected. Role: `AGENT`  
-Agent registers a farmer on their behalf. Farmer is automatically pre-verified.
+Agent registers a farmer on their behalf. Farmer KYC documents are submitted for admin approval.
+
+**Content-Type:** `multipart/form-data`
 
 **Body:**
+
 ```json
 {
   "fullName": "Yaw Farmer",
@@ -958,16 +1072,26 @@ Agent registers a farmer on their behalf. Farmer is automatically pre-verified.
 }
 ```
 
+**Files:** (Required)
+| Field | Type | Description |
+|-------|------|-------------|
+| `nationalId` | file | National ID document (image or PDF) |
+| `farmRegistration` | file | Farm registration document (image or PDF) |
+| `businessCertificate` | file | Business certificate document (image or PDF) |
+
 **Response `201`:**
+
 ```json
 {
-  "message": "Farmer registered successfully",
+  "message": "Farmer registered successfully. KYC documents pending admin approval.",
   "farmer": {
     "id": "cmngu98m3...",
     "fullName": "Yaw Farmer",
     "email": "yaw@example.com",
     "role": "FARMER",
-    "isVerified": true
+    "isVerified": true,
+    "kycStatus": "PENDING",
+    "kycSubmittedAt": "2025-12-10T14:30:00Z"
   }
 }
 ```
@@ -975,6 +1099,7 @@ Agent registers a farmer on their behalf. Farmer is automatically pre-verified.
 ---
 
 ### Get My Farmers
+
 `GET /api/agents/my-farmers`  
 Protected. Role: `AGENT`  
 Returns all farmers managed by the logged-in agent including their listings.
@@ -982,6 +1107,7 @@ Returns all farmers managed by the logged-in agent including their listings.
 ---
 
 ### Get Agent Requests
+
 `GET /api/agents/requests`  
 Protected. Role: `AGENT`  
 Returns pending farmer requests to be managed by this agent.
@@ -989,11 +1115,13 @@ Returns pending farmer requests to be managed by this agent.
 ---
 
 ### Request an Agent (Farmer)
+
 `POST /api/agents/:agentId/request`  
 Protected. Role: `FARMER`  
 Farmer sends a request to be managed by a specific agent.
 
 **Response `201`:**
+
 ```json
 {
   "message": "Agent request sent",
@@ -1004,10 +1132,12 @@ Farmer sends a request to be managed by a specific agent.
 ---
 
 ### Handle Agent Request
+
 `PUT /api/agents/requests/:requestId`  
 🔒 Protected. Role: `AGENT`
 
 **Body:**
+
 ```json
 {
   "status": "ACCEPTED"
@@ -1019,10 +1149,12 @@ Statuses: `ACCEPTED`, `REJECTED`
 ---
 
 ### Assign Agent to Order
+
 `PUT /api/agents/orders/:orderId/assign`  
 🔒 Protected. Role: `ADMIN`
 
 **Body:**
+
 ```json
 {
   "agentId": "cmngu98m3..."
@@ -1036,9 +1168,11 @@ Statuses: `ACCEPTED`, `REJECTED`
 > All admin endpoints require `ADMIN` role.
 
 ### Get Dashboard Stats
+
 `GET /api/admin/stats`
 
 **Response `200`:**
+
 ```json
 {
   "stats": {
@@ -1058,6 +1192,7 @@ Statuses: `ACCEPTED`, `REJECTED`
 ---
 
 ### Get All Users
+
 `GET /api/admin/users`
 
 **Query params:**
@@ -1072,9 +1207,11 @@ Statuses: `ACCEPTED`, `REJECTED`
 ---
 
 ### Update User
+
 `PUT /api/admin/users/:id`
 
 **Body (all optional):**
+
 ```json
 {
   "isActive": false,
@@ -1090,9 +1227,11 @@ Statuses: `ACCEPTED`, `REJECTED`
 ---
 
 ### Delete User
+
 `DELETE /api/admin/users/:id`
 
 **Response `200`:**
+
 ```json
 {
   "message": "User deleted successfully"
@@ -1102,6 +1241,7 @@ Statuses: `ACCEPTED`, `REJECTED`
 ---
 
 ### Get All Orders
+
 `GET /api/admin/orders`
 
 **Query params:**
@@ -1114,9 +1254,11 @@ Statuses: `ACCEPTED`, `REJECTED`
 ---
 
 ### Create Category
+
 `POST /api/admin/categories`
 
 **Body:**
+
 ```json
 {
   "name": "Vegetables",
@@ -1131,15 +1273,18 @@ Statuses: `ACCEPTED`, `REJECTED`
 ---
 
 ### Get Categories (Admin)
+
 `GET /api/admin/categories`  
 Same as public `GET /api/categories` but accessible from admin panel.
 
 ---
 
 ### Update Category
+
 `PUT /api/admin/categories/:id`
 
 **Body (all optional):**
+
 ```json
 {
   "name": "Updated Name",
@@ -1152,13 +1297,129 @@ Same as public `GET /api/categories` but accessible from admin panel.
 
 ---
 
+## KYC Management (Admin)
+
+> All KYC endpoints require `ADMIN` role.
+
+### Get Pending KYC Submissions
+
+`GET /api/admin/kyc/pending`
+
+Retrieves all farmers with pending KYC approval.
+
+**Query params:**
+| Param | Type | Description |
+|-------|------|-------------|
+| `page` | number | Page number (default: 1) |
+| `limit` | number | Results per page (default: 20) |
+
+**Response `200`:**
+
+```json
+{
+  "pending": [
+    {
+      "id": "user-id-123",
+      "fullName": "Kwame Nkrumah",
+      "email": "kwame@example.com",
+      "nationalIdImageUrl": "https://res.cloudinary.com/...",
+      "farmRegistrationImageUrl": "https://res.cloudinary.com/...",
+      "businessCertificateImageUrl": "https://res.cloudinary.com/...",
+      "kycStatus": "PENDING",
+      "kycSubmittedAt": "2025-12-10T14:30:00Z"
+    }
+  ],
+  "total": 5,
+  "page": 1
+}
+```
+
+---
+
+### Get KYC Status
+
+`GET /api/admin/kyc/:userId`
+
+Retrieves KYC information for a specific farmer.
+
+**Response `200`:**
+
+```json
+{
+  "id": "user-id-123",
+  "fullName": "Kwame Nkrumah",
+  "email": "kwame@example.com",
+  "nationalIdImageUrl": "https://res.cloudinary.com/...",
+  "farmRegistrationImageUrl": "https://res.cloudinary.com/...",
+  "businessCertificateImageUrl": "https://res.cloudinary.com/...",
+  "kycStatus": "PENDING",
+  "kycSubmittedAt": "2025-12-10T14:30:00Z",
+  "kycApprovedAt": null,
+  "kycRejectReason": null
+}
+```
+
+---
+
+### Approve KYC
+
+`PUT /api/admin/kyc/:userId/approve`
+
+Approves a farmer's KYC documents.
+
+**Response `200`:**
+
+```json
+{
+  "message": "KYC approved successfully",
+  "user": {
+    "id": "user-id-123",
+    "kycStatus": "APPROVED",
+    "kycApprovedAt": "2025-12-10T15:00:00Z"
+  }
+}
+```
+
+---
+
+### Reject KYC
+
+`PUT /api/admin/kyc/:userId/reject`
+
+Rejects a farmer's KYC documents with a reason.
+
+**Body:**
+
+```json
+{
+  "reason": "National ID image is unclear"
+}
+```
+
+**Response `200`:**
+
+```json
+{
+  "message": "KYC rejected successfully",
+  "user": {
+    "id": "user-id-123",
+    "kycStatus": "REJECTED",
+    "kycRejectReason": "National ID image is unclear"
+  }
+}
+```
+
+---
+
 ## Categories
 
 ### Get All Categories
+
 `GET /api/categories`  
 Public. Returns all active categories with their subcategories.
 
 **Response `200`:**
+
 ```json
 {
   "categories": [
@@ -1167,9 +1428,7 @@ Public. Returns all active categories with their subcategories.
       "name": "Vegetables",
       "description": "Fresh vegetables",
       "iconUrl": null,
-      "children": [
-        { "id": "...", "name": "Leafy Greens" }
-      ]
+      "children": [{ "id": "...", "name": "Leafy Greens" }]
     }
   ]
 }
@@ -1179,28 +1438,29 @@ Public. Returns all active categories with their subcategories.
 
 ## Roles
 
-| Role | Description |
-|------|-------------|
-| `FARMER` | Creates and manages listings, manages orders, can request an agent |
-| `BUYER` | Browses listings, manages cart, places orders, initiates barter |
-| `AGENT` | Registers and manages farmers, handles listings and orders on their behalf |
-| `ADMIN` | Full system access — manages users, categories, and monitors all activity |
+| Role     | Description                                                                |
+| -------- | -------------------------------------------------------------------------- |
+| `FARMER` | Creates and manages listings, manages orders, can request an agent         |
+| `BUYER`  | Browses listings, manages cart, places orders, initiates barter            |
+| `AGENT`  | Registers and manages farmers, handles listings and orders on their behalf |
+| `ADMIN`  | Full system access — manages users, categories, and monitors all activity  |
 
 ---
 
 ## Error Responses
 
-| Status | Meaning |
-|--------|---------|
-| `400` | Bad request — missing or invalid fields |
-| `401` | Unauthorized — missing or invalid token |
-| `403` | Forbidden — not allowed to perform this action |
-| `404` | Not found |
-| `409` | Conflict — resource already exists (e.g. email taken) |
-| `429` | Too many requests — rate limited |
-| `500` | Internal server error |
+| Status | Meaning                                               |
+| ------ | ----------------------------------------------------- |
+| `400`  | Bad request — missing or invalid fields               |
+| `401`  | Unauthorized — missing or invalid token               |
+| `403`  | Forbidden — not allowed to perform this action        |
+| `404`  | Not found                                             |
+| `409`  | Conflict — resource already exists (e.g. email taken) |
+| `429`  | Too many requests — rate limited                      |
+| `500`  | Internal server error                                 |
 
 **Error response format:**
+
 ```json
 {
   "message": "Description of what went wrong"
@@ -1211,9 +1471,9 @@ Public. Returns all active categories with their subcategories.
 
 ## Test Accounts
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | `admin@agritechgh.me` | `Admin1234` |
+| Role  | Email                   | Password    |
+| ----- | ----------------------- | ----------- |
+| Admin | `admin@FarmBridgegh.me` | `Admin1234` |
 
 > All other roles: register via `POST /api/auth/register`
 
@@ -1224,7 +1484,7 @@ Public. Returns all active categories with their subcategories.
 1. **Store `accessToken`** in memory or localStorage after login/register
 2. **Send token** in every protected request: `Authorization: Bearer <accessToken>`
 3. **Token expiry** — access token expires in 15 minutes. Call `POST /api/auth/refresh` when you get a `401` to get a new one. The refresh token is in an httpOnly cookie and is sent automatically.
-4. **Base URL** — use `http://localhost:8000` for local development, `https://api.agritechgh.me` for production
+4. **Base URL** — use `http://localhost:8000` for local development, `https://api.FarmBridgegh.me` for production
 5. **Validate cart** before showing checkout button — if `valid` is false, show issues to user
 6. **Payment flow**:
    - Call `POST /api/payments/initialize`

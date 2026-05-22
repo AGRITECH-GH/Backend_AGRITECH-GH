@@ -11,23 +11,52 @@
 
 // export default router
 
-import { Router } from 'express'
-import { authenticate, authorize } from '../middleware/authenticate.js'
+import { Router } from "express";
+import { authenticate, authorize } from "../middleware/authenticate.js";
 import {
-    registerAsAgent, getAllAgents, getAgentById, assignAgentToOrder,
-    registerFarmerAsAgent, getMyFarmers, requestAgent, handleAgentRequest, getAgentRequests
-} from '../controllers/agentController.js'
+  registerAsAgent,
+  getAllAgents,
+  getAgentById,
+  assignAgentToOrder,
+  registerFarmerAsAgent,
+  getMyFarmers,
+  requestAgent,
+  handleAgentRequest,
+  getAgentRequests,
+} from "../controllers/agentController.js";
+import { uploadKYCDocuments } from "../middleware/upload.js";
 
-const router = Router()
+const router = Router();
 
-router.post('/register', authenticate, authorize('AGENT'), registerAsAgent)
-router.post('/register-farmer', authenticate, authorize('AGENT'), registerFarmerAsAgent)
-router.get('/my-farmers', authenticate, authorize('AGENT'), getMyFarmers)
-router.get('/requests', authenticate, authorize('AGENT'), getAgentRequests)
-router.get('/', authenticate, getAllAgents)
-router.get('/:id', authenticate, getAgentById)
-router.post('/:agentId/request', authenticate, authorize('FARMER'), requestAgent)
-router.put('/requests/:requestId', authenticate, authorize('AGENT'), handleAgentRequest)
-router.put('/orders/:orderId/assign', authenticate, authorize('ADMIN'), assignAgentToOrder)
+router.post("/register", authenticate, authorize("AGENT"), registerAsAgent);
+router.post(
+  "/register-farmer",
+  authenticate,
+  authorize("AGENT"),
+  uploadKYCDocuments,
+  registerFarmerAsAgent,
+);
+router.get("/my-farmers", authenticate, authorize("AGENT"), getMyFarmers);
+router.get("/requests", authenticate, authorize("AGENT"), getAgentRequests);
+router.get("/", authenticate, getAllAgents);
+router.get("/:id", authenticate, getAgentById);
+router.post(
+  "/:agentId/request",
+  authenticate,
+  authorize("FARMER"),
+  requestAgent,
+);
+router.put(
+  "/requests/:requestId",
+  authenticate,
+  authorize("AGENT"),
+  handleAgentRequest,
+);
+router.put(
+  "/orders/:orderId/assign",
+  authenticate,
+  authorize("ADMIN"),
+  assignAgentToOrder,
+);
 
-export default router
+export default router;
