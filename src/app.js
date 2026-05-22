@@ -24,7 +24,15 @@ import reviewRouter from "./routes/reviewRoutes.js";
 import disputeRouter from "./routes/disputeRoutes.js";
 import passport from "./config/passport.js";
 
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+global.__dirname = __dirname;
+
 const app = express();
+app.set("trust proxy", 1);
 
 // 1. Define allowed origins (including both www and non-www versions of your domain)
 const allowedOrigins = [
