@@ -7,7 +7,7 @@ import listingRouter from "./routes/listingRoutes.js";
 import orderRouter from "./routes/orderRoutes.js";
 import cartRouter from "./routes/cartRoutes.js";
 import barterRouter from "./routes/barterRoutes.js";
-import adminRouter from "./routes/adminRouter.js"; // Note: verify if this should be adminRoutes.js based on your imports, keeping as is
+import adminRouter from "./routes/adminRoutes.js"; // Note: verify if this should be adminRoutes.js based on your imports, keeping as is
 import agentRouter from "./routes/agentRoutes.js";
 import paymentRouter from "./routes/paymentRoutes.js";
 import {
