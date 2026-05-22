@@ -721,7 +721,7 @@ export const removeProfilePhoto = async (req, res) => {
 
     // Delete from Cloudinary
     const publicId = user.profilePhotoUrl.split("/").slice(-1)[0].split(".")[0];
-    await cloudinary.uploader.destroy(`agritech/profiles/${publicId}`);
+    await cloudinary.uploader.destroy(`FarmBridge/profiles/${publicId}`);
 
     await prisma.user.update({
       where: { id: req.user.id },

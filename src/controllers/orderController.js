@@ -1,55 +1,60 @@
-import prisma from '../config/prisma.js'
+import prisma from "../config/prisma.js";
 
 export const createOrder = async (req, res) => {
   try {
-    const { paymentMethod, deliveryAddress, notes } = req.body
+    const { paymentMethod, deliveryAddress, notes } = req.body;
 
     if (!paymentMethod) {
-      return res.status(400).json({ message: 'paymentMethod is required' })
+      return res.status(400).json({ message: "paymentMethod is required" });
     }
 
     const cart = await prisma.cart.findUnique({
       where: { userId: req.user.id },
-      include: { items: { include: { listing: true } } }
-    })
+      include: { items: { include: { listing: true } } },
+    });
 
     if (!cart || cart.items.length === 0) {
-      return res.status(400).json({ message: 'Your cart is empty' })
+      return res.status(400).json({ message: "Your cart is empty" });
     }
 
     // Validate all items
-    const issues = []
-    let totalPrice = 0
-    const orderItems = []
+    const issues = [];
+    let totalPrice = 0;
+    const orderItems = [];
 
     for (const item of cart.items) {
-      const listing = item.listing
+      const listing = item.listing;
 
-      if (listing.status !== 'ACTIVE') {
-        issues.push({ title: listing.title, issue: 'No longer available' })
-        continue
+      if (listing.status !== "ACTIVE") {
+        issues.push({ title: listing.title, issue: "No longer available" });
+        continue;
       }
 
       if (parseFloat(listing.quantityAvailable) < parseFloat(item.quantity)) {
-        issues.push({ title: listing.title, issue: `Only ${listing.quantityAvailable} ${listing.unit} available` })
-        continue
+        issues.push({
+          title: listing.title,
+          issue: `Only ${listing.quantityAvailable} ${listing.unit} available`,
+        });
+        continue;
       }
 
-      const unitPrice = parseFloat(listing.pricePerUnit)
-      const quantity = parseFloat(item.quantity)
-      const itemTotal = unitPrice * quantity
+      const unitPrice = parseFloat(listing.pricePerUnit);
+      const quantity = parseFloat(item.quantity);
+      const itemTotal = unitPrice * quantity;
 
-      totalPrice += itemTotal
+      totalPrice += itemTotal;
       orderItems.push({
         listingId: listing.id,
         quantityOrdered: quantity,
         unitPriceAtOrder: unitPrice,
-        totalPrice: itemTotal
-      })
+        totalPrice: itemTotal,
+      });
     }
 
     if (issues.length > 0) {
-      return res.status(400).json({ message: 'Some items in your cart have issues', issues })
+      return res
+        .status(400)
+        .json({ message: "Some items in your cart have issues", issues });
     }
 
     // Create order + order items + reduce stock + clear cart in one transaction
@@ -61,65 +66,71 @@ export const createOrder = async (req, res) => {
           deliveryAddress,
           notes,
           buyerId: req.user.id,
-          items: { create: orderItems }
+          items: { create: orderItems },
         },
         include: {
           items: {
-            include: { listing: { select: { id: true, title: true, unit: true } } }
-          }
-        }
-      })
+            include: {
+              listing: { select: { id: true, title: true, unit: true } },
+            },
+          },
+        },
+      });
 
       // Reduce quantityAvailable for each listing
       for (const item of orderItems) {
         await tx.listing.update({
           where: { id: item.listingId },
-          data: { quantityAvailable: { decrement: item.quantityOrdered } }
-        })
+          data: { quantityAvailable: { decrement: item.quantityOrdered } },
+        });
       }
 
       // Clear cart
-      await tx.cartItem.deleteMany({ where: { cartId: cart.id } })
+      await tx.cartItem.deleteMany({ where: { cartId: cart.id } });
 
-      return newOrder
-    })
+      return newOrder;
+    });
 
-    return res.status(201).json({ message: 'Order placed successfully', order })
+    return res
+      .status(201)
+      .json({ message: "Order placed successfully", order });
   } catch (error) {
-    console.error('Create order error:', error)
-    return res.status(500).json({ message: 'Internal server error' })
+    console.error("Create order error:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 export const getMyOrders = async (req, res) => {
   try {
-    const { role, id } = req.user
-    const { status, page = 1, limit = 20 } = req.query
+    const { role, id } = req.user;
+    const { status, page = 1, limit = 20 } = req.query;
 
-    const filters = {}
-    if (role === 'BUYER') filters.buyerId = id
-    else if (role === 'FARMER' || role === 'AGENT') {
-      filters.items = { some: { listing: { sellerId: id } } }
+    const filters = {};
+    if (role === "BUYER") filters.buyerId = id;
+    else if (role === "FARMER" || role === "AGENT") {
+      filters.items = { some: { listing: { sellerId: id } } };
     }
-    if (status) filters.status = status
+    if (status) filters.status = status;
 
-    const skip = (parseInt(page) - 1) * parseInt(limit)
+    const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where: filters,
         include: {
           items: {
-            include: { listing: { select: { id: true, title: true, unit: true } } }
+            include: {
+              listing: { select: { id: true, title: true, unit: true } },
+            },
           },
-          buyer: { select: { id: true, fullName: true, email: true } }
+          buyer: { select: { id: true, fullName: true, email: true } },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: "desc" },
         skip,
-        take: parseInt(limit)
+        take: parseInt(limit),
       }),
-      prisma.order.count({ where: filters })
-    ])
+      prisma.order.count({ where: filters }),
+    ]);
 
     return res.status(200).json({
       orders,
@@ -127,18 +138,18 @@ export const getMyOrders = async (req, res) => {
         total,
         page: parseInt(page),
         limit: parseInt(limit),
-        totalPages: Math.ceil(total / parseInt(limit))
-      }
-    })
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
+    });
   } catch (error) {
-    console.error('Get orders error:', error)
-    return res.status(500).json({ message: 'Internal server error' })
+    console.error("Get orders error:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 export const getOrderById = async (req, res) => {
   try {
-    const { id } = req.params
+    const { id } = req.params;
 
     const order = await prisma.order.findUnique({
       where: { id },
@@ -147,95 +158,129 @@ export const getOrderById = async (req, res) => {
           include: {
             listing: {
               select: {
-                id: true, title: true, unit: true, pricePerUnit: true,
-                seller: { select: { id: true, fullName: true } }
-              }
-            }
-          }
+                id: true,
+                title: true,
+                unit: true,
+                pricePerUnit: true,
+                seller: { select: { id: true, fullName: true } },
+              },
+            },
+          },
         },
         buyer: { select: { id: true, fullName: true, email: true } },
         agent: { select: { id: true, fullName: true } },
-        payment: true
-      }
-    })
+        payment: true,
+      },
+    });
 
     if (!order) {
-      return res.status(404).json({ message: 'Order not found' })
+      return res.status(404).json({ message: "Order not found" });
     }
 
-    const isBuyer = order.buyerId === req.user.id
-    const isSeller = order.items.some(item => item.listing.seller.id === req.user.id)
-    const isAgent = order.agentId === req.user.id
-    const isAdmin = req.user.role === 'ADMIN'
+    const isBuyer = order.buyerId === req.user.id;
+    const isSeller = order.items.some(
+      (item) => item.listing.seller.id === req.user.id,
+    );
+    const isAgent = order.agentId === req.user.id;
+    const isAdmin = req.user.role === "ADMIN";
 
     if (!isBuyer && !isSeller && !isAgent && !isAdmin) {
-      return res.status(403).json({ message: 'You do not have access to this order' })
+      return res
+        .status(403)
+        .json({ message: "You do not have access to this order" });
     }
 
-    return res.status(200).json({ order })
+    return res.status(200).json({ order });
   } catch (error) {
-    console.error('Get order error:', error)
-    return res.status(500).json({ message: 'Internal server error' })
+    console.error("Get order error:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 export const updateOrderStatus = async (req, res) => {
   try {
-    const { id } = req.params
-    const { status } = req.body
+    const { id } = req.params;
+    const { status } = req.body;
 
     if (!status) {
-      return res.status(400).json({ message: 'Status is required' })
+      return res.status(400).json({ message: "Status is required" });
     }
 
     const order = await prisma.order.findUnique({
       where: { id },
-      include: { items: { include: { listing: true } } }
-    })
+      include: { items: { include: { listing: true } } },
+    });
 
     if (!order) {
-      return res.status(404).json({ message: 'Order not found' })
+      return res.status(404).json({ message: "Order not found" });
     }
 
-    const isSeller = order.items.some(item => item.listing.sellerId === req.user.id)
-    const isBuyer = order.buyerId === req.user.id
-    const isAgent = order.agentId === req.user.id
+    const isSeller = order.items.some(
+      (item) => item.listing.sellerId === req.user.id,
+    );
+    const isBuyer = order.buyerId === req.user.id;
+    const isAgent = order.agentId === req.user.id;
 
-    const sellerAllowed = ['CONFIRMED', 'DISPATCHED', 'DELIVERED', 'CANCELLED']
-    const buyerAllowed = ['CANCELLED']
+    const sellerAllowed = ["CONFIRMED", "DISPATCHED", "DELIVERED", "CANCELLED"];
+    const buyerAllowed = ["CANCELLED"];
 
     if (isSeller || isAgent) {
       if (!sellerAllowed.includes(status)) {
-        return res.status(400).json({ message: `Farmer can only set status to: ${sellerAllowed.join(', ')}` })
+        return res
+          .status(400)
+          .json({
+            message: `Farmer can only set status to: ${sellerAllowed.join(", ")}`,
+          });
       }
     } else if (isBuyer) {
       if (!buyerAllowed.includes(status)) {
-        return res.status(400).json({ message: 'Buyers can only cancel orders' })
+        return res
+          .status(400)
+          .json({ message: "Buyers can only cancel orders" });
       }
-      if (order.status !== 'PENDING') {
-        return res.status(400).json({ message: 'You can only cancel a pending order' })
+      if (order.status !== "PENDING") {
+        return res
+          .status(400)
+          .json({ message: "You can only cancel a pending order" });
       }
     } else {
-      return res.status(403).json({ message: 'You do not have access to this order' })
+      return res
+        .status(403)
+        .json({ message: "You do not have access to this order" });
     }
 
-    if (status === 'CANCELLED' && order.status !== 'CANCELLED') {
+    if (status === "CANCELLED" && order.status !== "CANCELLED") {
       await prisma.$transaction(async (tx) => {
-        await tx.order.update({ where: { id }, data: { status } })
+        await tx.order.update({
+          where: { id },
+          data: { status, deliveredAt: null },
+        });
         for (const item of order.items) {
           await tx.listing.update({
             where: { id: item.listingId },
-            data: { quantityAvailable: { increment: parseFloat(item.quantityOrdered) } }
-          })
+            data: {
+              quantityAvailable: {
+                increment: parseFloat(item.quantityOrdered),
+              },
+            },
+          });
         }
-      })
+      });
     } else {
-      await prisma.order.update({ where: { id }, data: { status } })
+      await prisma.order.update({
+        where: { id },
+        data: {
+          status,
+          deliveredAt: status === "DELIVERED" ? new Date() : null,
+        },
+      });
     }
 
-    return res.status(200).json({ message: `Order status updated to ${status}` })
+    return res
+      .status(200)
+      .json({ message: `Order status updated to ${status}` });
   } catch (error) {
-    console.error('Update order status error:', error)
-    return res.status(500).json({ message: 'Internal server error' })
+    console.error("Update order status error:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
-}
+};

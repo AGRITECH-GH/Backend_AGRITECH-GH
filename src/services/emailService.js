@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 
-const supportEmail = process.env.SUPPORT_EMAIL || "info@agritechgh.me";
+const supportEmail = process.env.SUPPORT_EMAIL || "info@FarmBridgegh.me";
 
 const getResendClient = () => {
   const apiKey = process.env.RESEND_API_KEY;
@@ -16,7 +16,7 @@ const sendEmail = async ({ to, subject, html }) => {
   const resend = getResendClient();
 
   const { data, error } = await resend.emails.send({
-    from: `AgriTech GH <${supportEmail}>`,
+    from: `FarmBridge GH <${supportEmail}>`,
     to,
     subject,
     html,
@@ -35,8 +35,8 @@ export const sendVerificationEmail = async (email, fullName, token) => {
 
   const data = await sendEmail({
     to: email,
-    subject: "Verify your AgriTech GH account",
-    html: `  <h2>Welcome to AgriTech GH, ${fullName}!</h2>
+    subject: "Verify your FarmBridge GH account",
+    html: `  <h2>Welcome to FarmBridge GH, ${fullName}!</h2>
       <p>Please verify your email address by clicking the button below.</p>
      <a href="${verificationUrl}" style="
       background-color: #16a34a;
@@ -60,7 +60,7 @@ export const sendPasswordResetEmail = async (email, fullName, token) => {
 
   const data = await sendEmail({
     to: email,
-    subject: "Reset your AgriTech GH password",
+    subject: "Reset your FarmBridge GH password",
     html: `
       <h2>Password Reset Request</h2>
       <p>Hi ${fullName},</p>
@@ -126,8 +126,8 @@ export const sendKYCStatusEmail = async (
   const isApproved = normalizedStatus === "APPROVED";
 
   const subject = isApproved
-    ? "Your AgriTech GH KYC verification was approved"
-    : "Your AgriTech GH KYC verification needs attention";
+    ? "Your FarmBridge GH KYC verification was approved"
+    : "Your FarmBridge GH KYC verification needs attention";
 
   const statusHeading = isApproved
     ? "KYC verification approved"
@@ -164,4 +164,73 @@ export const sendKYCStatusEmail = async (
   });
 
   console.log("KYC status email sent:", data);
+};
+
+export const sendNewMessageEmail = async ({
+  email,
+  recipientName,
+  senderName,
+  listingTitle,
+  conversationId,
+}) => {
+  const inboxUrl = `${process.env.CLIENT_URL}/messages/${conversationId}`;
+  const context = listingTitle ? ` about <strong>${listingTitle}</strong>` : "";
+
+  await sendEmail({
+    to: email,
+    subject: `New message from ${senderName}`,
+    html: `
+      <h2>You have a new message</h2>
+      <p>Hi ${recipientName},</p>
+      <p><strong>${senderName}</strong> sent you a message${context}.</p>
+      <a href="${inboxUrl}" style="
+        background-color: #16a34a; color: white; padding: 12px 24px;
+        text-decoration: none; border-radius: 6px; display: inline-block; margin: 16px 0;">
+        View Message
+      </a>
+      <p>Or copy this link: ${inboxUrl}</p>
+      <p>Support: ${supportEmail}</p>
+    `,
+  });
+};
+
+const NEGOTIATION_STATUS_LABELS = {
+  PENDING: "New offer received",
+  ACCEPTED: "Your offer was accepted 🎉",
+  REJECTED: "Your offer was declined",
+  COUNTERED: "A counter-offer was made",
+  WITHDRAWN: "An offer was withdrawn",
+};
+
+export const sendNegotiationUpdateEmail = async ({
+  email,
+  recipientName,
+  senderName,
+  listingTitle,
+  status,
+  offeredPrice,
+  note,
+}) => {
+  const offersUrl = `${process.env.CLIENT_URL}/marketplace`;
+  const heading = NEGOTIATION_STATUS_LABELS[status] ?? "Offer update";
+  const noteBlock = note
+    ? `<blockquote style="border-left:4px solid #16a34a;padding:8px 16px;margin:16px 0;color:#374151;">${note}</blockquote>`
+    : "";
+
+  await sendEmail({
+    to: email,
+    subject: `${heading} — ${listingTitle}`,
+    html: `
+      <h2>${heading}</h2>
+      <p>Hi ${recipientName},</p>
+      <p><strong>${senderName}</strong> ${status === "PENDING" ? "made an offer of" : "responded to your offer on"} <strong>${listingTitle}</strong>${status === "PENDING" ? ` at <strong>GHS ${Number(offeredPrice).toFixed(2)}</strong>` : ""}.</p>
+      ${noteBlock}
+      <a href="${offersUrl}" style="
+        background-color: #16a34a; color: white; padding: 12px 24px;
+        text-decoration: none; border-radius: 6px; display: inline-block; margin: 16px 0;">
+        View on FarmBridge GH
+      </a>
+      <p>Support: ${supportEmail}</p>
+    `,
+  });
 };

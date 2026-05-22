@@ -16,6 +16,11 @@ import {
   getKYCStatus,
   resendKYCDecisionEmail,
 } from "../controllers/adminController.js";
+import {
+  getDisputes,
+  getDisputeById,
+  mediateDispute,
+} from "../controllers/disputeController.js";
 
 const router = Router();
 
@@ -37,5 +42,10 @@ router.get("/kyc/:userId", getKYCStatus);
 router.put("/kyc/:userId/approve", approveKYC);
 router.put("/kyc/:userId/reject", rejectKYC);
 router.post("/kyc/:userId/resend-email", resendKYCDecisionEmail);
+
+// Dispute mediation routes
+router.get("/disputes", getDisputes);
+router.get("/disputes/:id", getDisputeById);
+router.patch("/disputes/:id", mediateDispute);
 
 export default router;

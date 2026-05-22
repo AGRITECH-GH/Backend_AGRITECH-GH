@@ -41,8 +41,14 @@ model User {
   agentOrders       Order[]    @relation("AgentOrders")
   sentMessages      Message[]  @relation("SentMessages")
   receivedMessages  Message[]  @relation("ReceivedMessages")
+  conversationsAsA  Conversation[] @relation("ConversationA")
+  conversationsAsB  Conversation[] @relation("ConversationB")
+  negotiationOffers NegotiationOffer[] @relation("NegotiationProposer")
   reviewsGiven      Review[]   @relation("ReviewsGiven")
   reviewsReceived   Review[]   @relation("ReviewsReceived")
+  disputesFiled     Dispute[]  @relation("DisputeFiledBy")
+  disputesAssigned  Dispute[]  @relation("DisputeAssignedTo")
+  disputeAuditLogs  DisputeAuditLog[]
   notifications     Notification[]
   agentProfile      FieldAgent?
   productionRecords ProductionRecord[]
@@ -127,6 +133,8 @@ model Listing {
   id                String        @id @default(cuid())
   title             String        @db.VarChar(200)
   description       String?
+  minimumOrderQty   Decimal?      @db.Decimal(10, 2)
+  negotiable        Boolean       @default(false)
   quantityAvailable Decimal       @db.Decimal(10, 2)
   quantity          Decimal       @db.Decimal(10, 2)
   unit              Unit
@@ -151,9 +159,11 @@ model Listing {
   images    ListingImage[]
   barterRequestsAsTarget BarterRequest[] @relation("TargetListing")
   barterRequestsAsOffer  BarterRequest[] @relation("OfferedListing")
-  messages  Message[]
-  cartItems CartItem[]
-  orderItems OrderItem[]
+  messages          Message[]
+  conversations     Conversation[]
+  negotiationOffers NegotiationOffer[]
+  cartItems         CartItem[]
+  orderItems        OrderItem[]
 }
 
 model ListingImage {
@@ -218,6 +228,7 @@ model Order {
   totalPrice           Decimal       @db.Decimal(12, 2)
   paymentMethod        PaymentMethod
   status               OrderStatus   @default(PENDING)
+  deliveredAt          DateTime?
   deliveryAddress      String?       @db.VarChar(300)
   expectedDeliveryDate DateTime?
   notes                String?
@@ -234,6 +245,7 @@ model Order {
   items   OrderItem[]
   payment Payment?
   review  Review?
+  dispute Dispute?
 }
 
 model OrderItem {
@@ -366,6 +378,29 @@ enum MessageType {
   SYSTEM
 }
 
+model Conversation {
+  id           String    @id @default(cuid())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastMessageAt DateTime?
+
+  // The two participants (always stored as participantAId < participantBId by cuid sort to enforce uniqueness)
+  participantAId String
+  participantBId String
+
+  // Optional listing context
+  listingId String?
+
+  // Relations
+  participantA      User               @relation("ConversationA", fields: [participantAId], references: [id])
+  participantB      User               @relation("ConversationB", fields: [participantBId], references: [id])
+  listing           Listing?           @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  messages          Message[]
+  negotiationOffers NegotiationOffer[]
+
+  @@unique([participantAId, participantBId, listingId])
+}
+
 model Message {
   id        String      @id @default(cuid())
   content   String
@@ -374,14 +409,54 @@ model Message {
   type      MessageType @default(TEXT)
 
   // Foreign keys
-  senderId   String
-  receiverId String
-  listingId  String?
+  senderId        String
+  receiverId      String
+  listingId       String?
+  conversationId  String?
 
   // Relations
-  sender   User     @relation("SentMessages", fields: [senderId], references: [id])
-  receiver User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
-  listing  Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  sender       User          @relation("SentMessages", fields: [senderId], references: [id])
+  receiver     User          @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  listing      Listing?      @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  attachments  MessageAttachment[]
+}
+
+model MessageAttachment {
+  id        String   @id @default(cuid())
+  imageUrl  String   @db.VarChar(500)
+  createdAt DateTime @default(now())
+
+  messageId String
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+enum NegotiationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COUNTERED
+  WITHDRAWN
+}
+
+model NegotiationOffer {
+  id             String            @id @default(cuid())
+  offeredPrice   Decimal           @db.Decimal(12, 2)
+  quantity       Decimal?          @db.Decimal(10, 2)
+  note           String?
+  status         NegotiationStatus @default(PENDING)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  // Foreign keys
+  proposerId     String
+  listingId      String
+  conversationId String?
+
+  // Relations
+  proposer     User          @relation("NegotiationProposer", fields: [proposerId], references: [id])
+  listing      Listing       @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  conversation Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
 }
 
 enum ReviewType {
@@ -406,6 +481,50 @@ model Review {
   reviewer     User  @relation("ReviewsGiven", fields: [reviewerId], references: [id])
   reviewedUser User  @relation("ReviewsReceived", fields: [reviewedUserId], references: [id])
   order        Order @relation(fields: [orderId], references: [id])
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+model Dispute {
+  id             String        @id @default(cuid())
+  reason         String        @db.VarChar(200)
+  details        String?
+  evidenceUrls   Json?
+  status         DisputeStatus @default(OPEN)
+  mediationNote  String?
+  resolutionNote String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  resolvedAt     DateTime?
+
+  // Foreign keys
+  orderId       String @unique
+  filedById     String
+  assignedToId  String?
+
+  // Relations
+  order      Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  filedBy    User  @relation("DisputeFiledBy", fields: [filedById], references: [id])
+  assignedTo User? @relation("DisputeAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  auditLogs  DisputeAuditLog[]
+}
+
+model DisputeAuditLog {
+  id        String   @id @default(cuid())
+  action    String   @db.VarChar(100)
+  note      String?
+  createdAt DateTime @default(now())
+
+  disputeId String
+  adminId   String
+
+  dispute Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  admin   User    @relation(fields: [adminId], references: [id])
 }
 
 enum PaymentStatus {
@@ -443,7 +562,9 @@ enum NotificationType {
   ORDER
   BARTER
   MESSAGE
+  NEGOTIATION
   REVIEW
+  DISPUTE
   SYSTEM
 }
 
