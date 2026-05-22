@@ -25,21 +25,8 @@ async function main() {
     where: { email: "stankofb@gmail.com" },
     update: {},
     create: {
-      fullName: "Stanley Boateng",
+      fullName: "Stanley",
       email: "stankofb@gmail.com",
-      passwordHash: hashedPassword,
-      role: "ADMIN",
-      isVerified: true,
-      isActive: true,
-    },
-  });
-
-  const admin3 = await prisma.user.upsert({
-    where: { email: "e.animwaa.kumah@gmail.com" },
-    update: {},
-    create: {
-      fullName: "FarmBridge Admin 3",
-      email: "e.animwaa.kumah@gmail.com",
       passwordHash: hashedPassword,
       role: "ADMIN",
       isVerified: true,
@@ -49,7 +36,6 @@ async function main() {
 
   console.log("Admin 1 created:", admin1.email);
   console.log("Admin 2 created:", admin2.email);
-  console.log("Admin 2 created:", admin3.email);
   console.log("Done!");
 }
 
