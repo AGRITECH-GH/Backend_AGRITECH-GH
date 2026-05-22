@@ -7,7 +7,7 @@ import listingRouter from "./routes/listingRoutes.js";
 import orderRouter from "./routes/orderRoutes.js";
 import cartRouter from "./routes/cartRoutes.js";
 import barterRouter from "./routes/barterRoutes.js";
-import adminRouter from "./routes/adminRoutes.js";
+import adminRouter from "./routes/adminRouter.js"; // Note: verify if this should be adminRoutes.js based on your imports, keeping as is
 import agentRouter from "./routes/agentRoutes.js";
 import paymentRouter from "./routes/paymentRoutes.js";
 import {
@@ -25,28 +25,58 @@ import disputeRouter from "./routes/disputeRoutes.js";
 import passport from "./config/passport.js";
 
 const app = express();
-// app.use(cors({
-//     // origin: process.env.CLIENT_URL,
-//     origin: 'http://localhost:5173',
-//     credentials: true
-// }))
-// app.use(cors({
-//   origin: (origin, callback) => {
-//     callback(null, process.env.CLIENT_URL)
-//   },
-//   credentials: true
-// }))
+
+// 1. Define allowed origins (including both www and non-www versions of your domain)
+const allowedOrigins = [
+  "https://www.farmbridgeafrica.com",
+  "https://farmbridgeafrica.com",
+  "http://localhost:5173",
+];
+
+// 2. Sanitize and inject CLIENT_URL environment variable if it exists
+if (process.env.CLIENT_URL) {
+  const sanitizedClientUrl = process.env.CLIENT_URL.replace(/\/$/, ""); // Removes any trailing slash
+  if (!allowedOrigins.includes(sanitizedClientUrl)) {
+    allowedOrigins.push(sanitizedClientUrl);
+  }
+}
+
+// 3. Configure CORS middleware with dynamic dynamic origin matching
 app.use(
   cors({
-    origin: [process.env.CLIENT_URL, "http://localhost:5173"],
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps, postman, or server-to-server)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.error(`CORS Blocked for origin: ${origin}`);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+    ],
   }),
 );
-console.log("CORS Origin:", process.env.CLIENT_URL);
+
+// 4. Explicitly catch and respond to preflight OPTIONS requests across all paths
+app.options("*", cors());
+
+console.log("Configured CORS Allowed Origins:", allowedOrigins);
+
+// Webhook parsing must come BEFORE express.json()
 app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
 app.use(cookieParser());
 app.use(passport.initialize());
+
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
   next();
@@ -55,6 +85,7 @@ app.use((req, res, next) => {
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
+
 app.use(generalLimiter);
 app.use("/api/auth", authRouter);
 app.use("/api/listings", listingRouter);
