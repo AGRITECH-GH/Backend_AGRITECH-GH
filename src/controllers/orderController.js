@@ -1,8 +1,7 @@
 import prisma from "../config/prisma.js";
 
 // OWASP A03 – Injection: only these payment methods are accepted.
-// Values must match exactly what the Checkout.jsx frontend sends.
-const ALLOWED_PAYMENT_METHODS = new Set(["CASH", "MOMO", "CREDIT", "BARTER", "PAYSTACK"]);
+const ALLOWED_PAYMENT_METHODS = new Set(["CASH_ON_DELIVERY", "PAY_ONLINE"]);
 
 // Allow-list for order status filter in getMyOrders
 const ALLOWED_ORDER_STATUSES = new Set([

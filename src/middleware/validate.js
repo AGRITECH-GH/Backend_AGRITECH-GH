@@ -290,9 +290,8 @@ export const schemas = {
     paymentMethod:   {
       required: true,
       type: "string",
-      // Values match Checkout.jsx PAYMENT_METHODS — PAYSTACK included for
-      // server-side payment flows (e.g. Paystack redirect callback)
-      enum: ["CASH", "MOMO", "CREDIT", "BARTER", "PAYSTACK"],
+      // Values match Checkout.jsx PAYMENT_METHODS
+      enum: ["CASH_ON_DELIVERY", "PAY_ONLINE"],
     },
     deliveryAddress: { optional: true, type: "string", maxLength: 300 },
     notes:           { optional: true, type: "string", maxLength: 500 },
