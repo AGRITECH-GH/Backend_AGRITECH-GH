@@ -174,7 +174,7 @@ const sendEmail = async ({ to, subject, html }) => {
 };
 
 export const sendVerificationEmail = async (email, fullName, token) => {
-  const verificationUrl = `${process.env.CLIENT_URL}/verify?token=${token}`;
+  const verificationUrl = `${process.env.CLIENT_URL}/verify-email?token=${encodeURIComponent(token)}`;
 
   const data = await sendEmail({
     to: email,
