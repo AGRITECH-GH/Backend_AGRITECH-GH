@@ -728,13 +728,13 @@ Places an order for all items currently in cart. Cart is cleared automatically a
 
 ```json
 {
-  "paymentMethod": "CASH",
+  "paymentMethod": "CASH_ON_DELIVERY",
   "deliveryAddress": "Accra, Ghana",
   "notes": "Please call before delivery"
 }
 ```
 
-Payment methods: `MOMO`, `CASH`, `BARTER`, `CREDIT`
+Payment methods: `CASH_ON_DELIVERY`, `PAY_ONLINE`
 
 **Response `201`:**
 
@@ -744,7 +744,7 @@ Payment methods: `MOMO`, `CASH`, `BARTER`, `CREDIT`
   "order": {
     "id": "cmngu98m3...",
     "totalPrice": "600",
-    "paymentMethod": "CASH",
+    "paymentMethod": "CASH_ON_DELIVERY",
     "status": "PENDING",
     "deliveryAddress": "Accra, Ghana",
     "items": [
@@ -995,7 +995,7 @@ Protected.
     "amount": "600",
     "currency": "GHS",
     "status": "SUCCESS",
-    "method": "CASH",
+    "method": "PAY_ONLINE",
     "paidAt": "2026-03-16T16:42:19.079Z",
     "paystackReference": "AGRI-..."
   }

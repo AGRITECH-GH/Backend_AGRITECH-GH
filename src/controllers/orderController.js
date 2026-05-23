@@ -5,7 +5,11 @@ const ALLOWED_PAYMENT_METHODS = new Set(["CASH_ON_DELIVERY", "PAY_ONLINE"]);
 
 // Allow-list for order status filter in getMyOrders
 const ALLOWED_ORDER_STATUSES = new Set([
-  "PENDING", "CONFIRMED", "DISPATCHED", "DELIVERED", "CANCELLED",
+  "PENDING",
+  "CONFIRMED",
+  "DISPATCHED",
+  "DELIVERED",
+  "CANCELLED",
 ]);
 
 export const createOrder = async (req, res) => {
@@ -26,10 +30,14 @@ export const createOrder = async (req, res) => {
 
     // Enforce field length limits to prevent oversized DB writes (OWASP A04)
     if (deliveryAddress && String(deliveryAddress).length > 300) {
-      return res.status(400).json({ message: "deliveryAddress must be at most 300 characters" });
+      return res
+        .status(400)
+        .json({ message: "deliveryAddress must be at most 300 characters" });
     }
     if (notes && String(notes).length > 500) {
-      return res.status(400).json({ message: "notes must be at most 500 characters" });
+      return res
+        .status(400)
+        .json({ message: "notes must be at most 500 characters" });
     }
 
     const cart = await prisma.cart.findUnique({
@@ -86,7 +94,7 @@ export const createOrder = async (req, res) => {
       const newOrder = await tx.order.create({
         data: {
           totalPrice,
-          paymentMethod,
+          paymentMethod: normalizedMethod,
           deliveryAddress,
           notes,
           buyerId: req.user.id,
@@ -259,11 +267,9 @@ export const updateOrderStatus = async (req, res) => {
 
     if (isSeller || isAgent) {
       if (!sellerAllowed.includes(status)) {
-        return res
-          .status(400)
-          .json({
-            message: `Farmer can only set status to: ${sellerAllowed.join(", ")}`,
-          });
+        return res.status(400).json({
+          message: `Farmer can only set status to: ${sellerAllowed.join(", ")}`,
+        });
       }
     } else if (isBuyer) {
       if (!buyerAllowed.includes(status)) {

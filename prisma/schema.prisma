@@ -210,10 +210,8 @@ model CartItem {
 }
 
 enum PaymentMethod {
-  MOMO
-  CASH
-  BARTER
-  CREDIT
+  CASH_ON_DELIVERY
+  PAY_ONLINE
 }
 
 enum OrderStatus {
