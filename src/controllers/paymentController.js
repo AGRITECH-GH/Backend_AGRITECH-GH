@@ -4,6 +4,23 @@ import crypto from "crypto";
 
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 
+const getPaystackCallbackUrl = () => {
+  const clientUrl = (process.env.CLIENT_URL || "").trim().replace(/\/+$/, "");
+  const configured = (process.env.PAYSTACK_CALLBACK_URL || "").trim();
+
+  if (!configured) {
+    return `${clientUrl}/payments/return`;
+  }
+
+  // Accept absolute URLs and normalize relative paths against CLIENT_URL.
+  if (/^https?:\/\//i.test(configured)) {
+    return configured;
+  }
+
+  const normalizedPath = configured.replace(/^\/+/, "");
+  return `${clientUrl}/${normalizedPath}`;
+};
+
 // Generate unique payment reference
 const generateReference = () => {
   return `AGRI-${Date.now()}-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
@@ -42,11 +59,9 @@ export const initializePayment = async (req, res) => {
     }
 
     if (order.paymentMethod !== "PAY_ONLINE") {
-      return res
-        .status(400)
-        .json({
-          message: "Paystack payments are only available for PAY_ONLINE orders",
-        });
+      return res.status(400).json({
+        message: "Paystack payments are only available for PAY_ONLINE orders",
+      });
     }
 
     // Check if already paid
@@ -60,6 +75,7 @@ export const initializePayment = async (req, res) => {
     const amountInPesewas = Math.round(parseFloat(order.totalPrice) * 100);
 
     const reference = generateReference();
+    const callbackUrl = getPaystackCallbackUrl();
 
     // Log payment attempt
     const payment = await prisma.payment.upsert({
@@ -91,7 +107,7 @@ export const initializePayment = async (req, res) => {
         amount: amountInPesewas,
         reference,
         currency: "GHS",
-        callback_url: process.env.PAYSTACK_CALLBACK_URL,
+        callback_url: callbackUrl,
         metadata: {
           orderId: order.id,
           buyerId: req.user.id,
@@ -205,21 +221,34 @@ export const verifyPayment = async (req, res) => {
 
 export const paystackWebhook = async (req, res) => {
   try {
+    const signature = req.headers["x-paystack-signature"];
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body
+      : Buffer.from(
+          typeof req.body === "string"
+            ? req.body
+            : JSON.stringify(req.body || {}),
+        );
+
     // Verify webhook signature
     const hash = crypto
       .createHmac("sha512", PAYSTACK_SECRET)
-      .update(JSON.stringify(req.body))
+      .update(rawBody)
       .digest("hex");
 
-    if (hash !== req.headers["x-paystack-signature"]) {
+    if (!signature || hash !== signature) {
       console.error("Invalid webhook signature");
       return res.status(401).json({ message: "Invalid signature" });
     }
 
-    const { event, data } = req.body;
+    const payload = Buffer.isBuffer(req.body)
+      ? JSON.parse(req.body.toString("utf8"))
+      : req.body;
+
+    const { event, data } = payload || {};
 
     if (event === "charge.success") {
-      const { reference, amount, status } = data;
+      const { reference, amount } = data || {};
 
       const payment = await prisma.payment.findUnique({
         where: { paystackReference: reference },

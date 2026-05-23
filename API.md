@@ -950,7 +950,7 @@ Protected. Role: `BUYER`
 ```
 
 > Redirect user to `paymentUrl` to complete payment on Paystack's secure page.  
-> After payment, Paystack redirects to `https://FarmBridgegh.me/payment/callback?reference=AGRI-xxx`.  
+> After payment, Paystack redirects to `https://FarmBridgegh.me/payments/return?reference=AGRI-xxx`.  
 > Read the `reference` from the URL and call the verify endpoint.
 
 ---
@@ -1489,7 +1489,7 @@ Public. Returns all active categories with their subcategories.
 6. **Payment flow**:
    - Call `POST /api/payments/initialize`
    - Redirect user to `paymentUrl`
-   - Paystack redirects to `/payment/callback?reference=AGRI-xxx`
+  - Paystack redirects to `/payments/return?reference=AGRI-xxx`
    - Read `reference` from URL and call `GET /api/payments/verify/:reference`
    - Show success or failure to user
 7. **Email verification** — check `isVerified` on the user object after login. Show a banner for unverified users. Listing creation and order placement are blocked until verified.
