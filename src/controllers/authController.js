@@ -19,11 +19,13 @@ const getRoleSetupStatusFromUser = (user) => {
 
   if (role === "AGENT") {
     if (!user?.phoneNumber) missingFields.push("phoneNumber");
-    if (!user?.agentProfile?.assignedRegion) missingFields.push("assignedRegion");
+    if (!user?.agentProfile?.assignedRegion)
+      missingFields.push("assignedRegion");
     if (user?.agentProfile?.commissionRate == null) {
       missingFields.push("commissionRate");
     }
-    if (!String(user?.agentProfile?.bio || "").trim()) missingFields.push("bio");
+    if (!String(user?.agentProfile?.bio || "").trim())
+      missingFields.push("bio");
   }
 
   if (role === "FARMER") {
@@ -819,12 +821,15 @@ export const completeRoleSetup = async (req, res) => {
 
     if (role !== "AGENT" && role !== "FARMER") {
       return res.status(400).json({
-        message: "Role setup completion is only available for agents and farmers",
+        message:
+          "Role setup completion is only available for agents and farmers",
       });
     }
 
     if (role === "AGENT") {
-      const phoneNumber = String(req.body.phoneNumber || user.phoneNumber || "").trim();
+      const phoneNumber = String(
+        req.body.phoneNumber || user.phoneNumber || "",
+      ).trim();
       const assignedRegion = String(
         req.body.assignedRegion || user.agentProfile?.assignedRegion || "",
       ).trim();
@@ -837,10 +842,14 @@ export const completeRoleSetup = async (req, res) => {
       const missingFields = [];
       if (!phoneNumber) missingFields.push("phoneNumber");
       if (!assignedRegion) missingFields.push("assignedRegion");
-      if (!Number.isFinite(commissionRate)) missingFields.push("commissionRate");
+      if (!Number.isFinite(commissionRate))
+        missingFields.push("commissionRate");
       if (!bio) missingFields.push("bio");
 
-      if (Number.isFinite(commissionRate) && (commissionRate < 0 || commissionRate > 100)) {
+      if (
+        Number.isFinite(commissionRate) &&
+        (commissionRate < 0 || commissionRate > 100)
+      ) {
         return res.status(400).json({
           message: "Commission rate must be between 0 and 100",
         });
@@ -879,22 +888,29 @@ export const completeRoleSetup = async (req, res) => {
     }
 
     if (role === "FARMER") {
-      const phoneNumber = String(req.body.phoneNumber || user.phoneNumber || "").trim();
+      const phoneNumber = String(
+        req.body.phoneNumber || user.phoneNumber || "",
+      ).trim();
       const region = String(req.body.region || user.region || "").trim();
 
       const nationalIdImageUrl =
         req.files?.nationalId?.[0]?.path || user.nationalIdImageUrl || null;
       const farmRegistrationImageUrl =
-        req.files?.farmRegistration?.[0]?.path || user.farmRegistrationImageUrl || null;
+        req.files?.farmRegistration?.[0]?.path ||
+        user.farmRegistrationImageUrl ||
+        null;
       const businessCertificateImageUrl =
-        req.files?.businessCertificate?.[0]?.path || user.businessCertificateImageUrl || null;
+        req.files?.businessCertificate?.[0]?.path ||
+        user.businessCertificateImageUrl ||
+        null;
 
       const missingFields = [];
       if (!phoneNumber) missingFields.push("phoneNumber");
       if (!region) missingFields.push("region");
       if (!nationalIdImageUrl) missingFields.push("nationalId");
       if (!farmRegistrationImageUrl) missingFields.push("farmRegistration");
-      if (!businessCertificateImageUrl) missingFields.push("businessCertificate");
+      if (!businessCertificateImageUrl)
+        missingFields.push("businessCertificate");
 
       if (missingFields.length > 0) {
         return res.status(400).json({
@@ -947,14 +963,34 @@ export const googleAuth = (req, res, next) => {
   passport.authenticate("google", {
     scope: ["profile", "email"],
     session: false,
+    prompt: "select_account",
     state: JSON.stringify({ role }),
   })(req, res, next);
 };
 
-export const googleCallbackMiddleware = passport.authenticate("google", {
-  session: false,
-  failureRedirect: `${process.env.CLIENT_URL}/login?error=google_failed`,
-});
+export const googleCallbackMiddleware = (req, res, next) => {
+  passport.authenticate("google", { session: false }, (err, user, info) => {
+    if (err) {
+      console.error("Google callback passport error:", err);
+      return res.redirect(
+        `${process.env.CLIENT_URL}/login?error=google_failed`,
+      );
+    }
+
+    if (!user) {
+      const errorCode =
+        typeof info?.code === "string" && info.code.trim()
+          ? info.code
+          : "google_failed";
+      return res.redirect(
+        `${process.env.CLIENT_URL}/login?error=${encodeURIComponent(errorCode)}`,
+      );
+    }
+
+    req.user = user;
+    return next();
+  })(req, res, next);
+};
 
 const GOOGLE_CODE_SECRET =
   process.env.JWT_GOOGLE_CODE_SECRET || process.env.JWT_ACCESS_SECRET;
@@ -1004,8 +1040,11 @@ export const exchangeGoogleCode = async (req, res) => {
       where: { id: decoded.userId },
       select: {
         id: true,
+        fullName: true,
+        email: true,
         role: true,
         isVerified: true,
+        profilePhotoUrl: true,
       },
     });
 
@@ -1032,7 +1071,17 @@ export const exchangeGoogleCode = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    return res.status(200).json({ accessToken });
+    return res.status(200).json({
+      accessToken,
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified,
+        profilePhotoUrl: user.profilePhotoUrl,
+      },
+    });
   } catch (error) {
     console.error("Exchange code error:", error);
     return res.status(500).json({ message: "Internal server error" });
