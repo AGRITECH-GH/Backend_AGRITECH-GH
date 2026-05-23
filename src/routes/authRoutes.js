@@ -27,6 +27,7 @@ import {
   uploadProfilePhoto as uploadPhotoMiddleware,
   uploadKYCDocuments,
 } from "../middleware/upload.js";
+import { oauthExchangeLimiter } from "../middleware/rateLimiter.js";
 
 const router = Router();
 
@@ -52,7 +53,7 @@ router.post(
 router.delete("/profile-photo", authenticate, removeProfilePhoto);
 router.get("/google", googleAuth);
 router.get("/google/callback", googleCallbackMiddleware, googleCallbackHandler);
-router.post("/google/exchange", exchangeGoogleCode);
+router.post("/google/exchange", oauthExchangeLimiter, exchangeGoogleCode);
 router.get("/role-setup-status", authenticate, getRoleSetupStatus);
 router.post(
   "/complete-role-setup",
