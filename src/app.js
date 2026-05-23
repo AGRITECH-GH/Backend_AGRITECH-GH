@@ -45,9 +45,23 @@ const normalizeOrigin = (origin) => String(origin || "").replace(/\/$/, "");
 
 // 2. Sanitize and inject CLIENT_URL environment variable if it exists
 if (process.env.CLIENT_URL) {
-  const sanitizedClientUrl = normalizeOrigin(process.env.CLIENT_URL); // Removes any trailing slash
-  if (!allowedOrigins.includes(sanitizedClientUrl)) {
-    allowedOrigins.push(sanitizedClientUrl);
+  if (process.env.CLIENT_URL.includes(",")) {
+    const urls = process.env.CLIENT_URL.split(",").map((url) => url.trim());
+    // Use the first URL as the primary redirect CLIENT_URL
+    process.env.CLIENT_URL = urls[0];
+    
+    // Add all of them to allowed CORS origins
+    urls.forEach((url) => {
+      const sanitized = normalizeOrigin(url);
+      if (sanitized && !allowedOrigins.includes(sanitized)) {
+        allowedOrigins.push(sanitized);
+      }
+    });
+  } else {
+    const sanitizedClientUrl = normalizeOrigin(process.env.CLIENT_URL);
+    if (!allowedOrigins.includes(sanitizedClientUrl)) {
+      allowedOrigins.push(sanitizedClientUrl);
+    }
   }
 }
 
