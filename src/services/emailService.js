@@ -180,7 +180,7 @@ export const sendVerificationEmail = async (email, fullName, token) => {
     to: email,
     subject: "Verify your FarmBridge Africa account",
     html: renderEmailTemplate({
-      preheader: "Verify your FarmBridge account",
+      preheader: "Verify your FarmBridge Africa account",
       heading: `Welcome to FarmBridge Africa, ${fullName}!`,
       recipientName: fullName,
       bodyHtml: `
