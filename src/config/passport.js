@@ -47,8 +47,8 @@ passport.use(
             return done(null, false, { code: "oauth_email_conflict" });
           }
 
-          // User exists — update photo if not set
-          if (!user.profilePhotoUrl && profilePhotoUrl) {
+          // User exists — always sync their Google profile photo
+          if (profilePhotoUrl && user.profilePhotoUrl !== profilePhotoUrl) {
             user = await prisma.user.update({
               where: { id: user.id },
               data: { profilePhotoUrl },
