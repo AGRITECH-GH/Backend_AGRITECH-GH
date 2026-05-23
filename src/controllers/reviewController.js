@@ -31,6 +31,11 @@ export const createReview = async (req, res) => {
     return res.status(400).json({ message: "Invalid review type" });
   }
 
+  // OWASP A04 \u2013 cap comment length to protect DB and prevent spam
+  if (comment !== undefined && comment !== null && String(comment).trim().length > 1000) {
+    return res.status(400).json({ message: "comment must be at most 1000 characters" });
+  }
+
   try {
     const order = await prisma.order.findUnique({
       where: { id: orderId },

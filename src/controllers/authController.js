@@ -70,6 +70,10 @@ const getUserForRoleSetup = async (userId) =>
     },
   });
 
+// Roles that may self-register through the public endpoint.
+// ADMIN accounts must be created out-of-band (e.g., direct DB seed).
+const ALLOWED_REGISTER_ROLES = new Set(["BUYER", "FARMER", "AGENT"]);
+
 export const register = async (req, res) => {
   try {
     const {
@@ -97,8 +101,19 @@ export const register = async (req, res) => {
           "Password must be at least 8 characters and contain at least one number",
       });
     }
+
+    // OWASP A01 – Broken Access Control: constrain role to allowed values
+    // BEFORE any DB operation so an attacker cannot self-register as ADMIN.
+    const normalizedRole = String(role || "").trim().toUpperCase();
+    if (!ALLOWED_REGISTER_ROLES.has(normalizedRole)) {
+      return res.status(400).json({ message: "Invalid role" });
+    }
+
+    // Normalise email to lowercase for consistent storage & lookups
+    const normalizedEmail = String(email).trim().toLowerCase();
+
     const existing = await prisma.user.findUnique({
-      where: { email: email },
+      where: { email: normalizedEmail },
     });
 
     if (existing) {
@@ -107,9 +122,6 @@ export const register = async (req, res) => {
       });
     }
 
-    const normalizedRole = String(role || "")
-      .trim()
-      .toUpperCase();
     if (normalizedRole === "FARMER") {
       // Check for required KYC documents
       if (
@@ -128,10 +140,10 @@ export const register = async (req, res) => {
 
     const user = await prisma.user.create({
       data: {
-        fullName: fullName,
-        email: email,
+        fullName: fullName.trim(),
+        email: normalizedEmail,  // always stored lowercase
         passwordHash: hashedPassword,
-        role: role,
+        role: normalizedRole,    // use the validated & normalised role
         nationalIdImageUrl:
           normalizedRole === "FARMER" ? req.files.nationalId[0].path : null,
         farmRegistrationImageUrl:
@@ -344,8 +356,11 @@ export const login = async (req, res) => {
       });
     }
 
+    // Normalise email to match how it is stored (always lowercase)
+    const normalizedEmail = String(email).trim().toLowerCase();
+
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     if (!user) {
@@ -406,10 +421,25 @@ export const refresh = async (req, res) => {
       return res.status(401).json({ message: "No refresh token" });
     }
 
+    // Verify the refresh token signature & expiry
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
 
+    // BUG FIX: fetch the user from DB so we can include the current
+    // isVerified flag in the new access token. Previously this referenced
+    // an undeclared `user` variable which caused a ReferenceError at runtime.
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, role: true, isVerified: true, isActive: true },
+    });
+
+    if (!user || !user.isActive) {
+      // Token is valid but account has been deactivated — reject silently
+      res.clearCookie("refreshToken", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict" });
+      return res.status(401).json({ message: "Invalid or expired refresh token" });
+    }
+
     const accessToken = jwt.sign(
-      { id: decoded.id, role: decoded.role, isVerified: user.isVerified },
+      { id: user.id, role: user.role, isVerified: user.isVerified },
       process.env.JWT_ACCESS_SECRET,
       { expiresIn: "50m" },
     );
@@ -660,7 +690,10 @@ export const requestEmailChange = async (req, res) => {
       return res.status(400).json({ message: "Incorrect password" });
     }
 
-    if (newEmail === user.email) {
+    // Normalise new email for consistent comparison & storage
+    const normalizedNewEmail = String(newEmail).trim().toLowerCase();
+
+    if (normalizedNewEmail === user.email) {
       return res
         .status(400)
         .json({ message: "New email must be different from current email" });
@@ -668,7 +701,7 @@ export const requestEmailChange = async (req, res) => {
 
     // Check if new email is already taken
     const existing = await prisma.user.findUnique({
-      where: { email: newEmail },
+      where: { email: normalizedNewEmail },
     });
     if (existing) {
       return res.status(409).json({ message: "Email already in use" });
@@ -686,7 +719,7 @@ export const requestEmailChange = async (req, res) => {
       },
     });
 
-    await sendEmailChangeVerification(newEmail, user.fullName, token);
+    await sendEmailChangeVerification(normalizedNewEmail, user.fullName, token);
 
     return res
       .status(200)
@@ -707,6 +740,9 @@ export const confirmEmailChange = async (req, res) => {
         .json({ message: "Token and new email are required" });
     }
 
+    // Normalise email before lookup & storage
+    const normalizedNewEmail = String(newEmail).trim().toLowerCase();
+
     const user = await prisma.user.findFirst({
       where: {
         verificationToken: token,
@@ -718,9 +754,9 @@ export const confirmEmailChange = async (req, res) => {
       return res.status(400).json({ message: "Invalid or expired token" });
     }
 
-    // Check again if new email is taken
+    // Check again if new email is taken (race-condition guard)
     const existing = await prisma.user.findUnique({
-      where: { email: newEmail },
+      where: { email: normalizedNewEmail },
     });
     if (existing) {
       return res.status(409).json({ message: "Email already in use" });
@@ -729,7 +765,7 @@ export const confirmEmailChange = async (req, res) => {
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        email: newEmail,
+        email: normalizedNewEmail,
         verificationToken: null,
         verificationTokenExpiry: null,
       },

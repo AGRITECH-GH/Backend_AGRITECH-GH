@@ -1,11 +1,36 @@
 import prisma from "../config/prisma.js";
 
+// OWASP A03 – Injection: only these payment methods are accepted.
+// Adding a new method requires an explicit code change, not a user-supplied string.
+const ALLOWED_PAYMENT_METHODS = new Set(["PAYSTACK", "CASH_ON_DELIVERY"]);
+
+// Allow-list for order status filter in getMyOrders
+const ALLOWED_ORDER_STATUSES = new Set([
+  "PENDING", "CONFIRMED", "DISPATCHED", "DELIVERED", "CANCELLED",
+]);
+
 export const createOrder = async (req, res) => {
   try {
     const { paymentMethod, deliveryAddress, notes } = req.body;
 
     if (!paymentMethod) {
       return res.status(400).json({ message: "paymentMethod is required" });
+    }
+
+    // Validate payment method against allow-list (OWASP A03)
+    const normalizedMethod = String(paymentMethod).trim().toUpperCase();
+    if (!ALLOWED_PAYMENT_METHODS.has(normalizedMethod)) {
+      return res.status(400).json({
+        message: `paymentMethod must be one of: ${[...ALLOWED_PAYMENT_METHODS].join(", ")}`,
+      });
+    }
+
+    // Enforce field length limits to prevent oversized DB writes (OWASP A04)
+    if (deliveryAddress && String(deliveryAddress).length > 300) {
+      return res.status(400).json({ message: "deliveryAddress must be at most 300 characters" });
+    }
+    if (notes && String(notes).length > 500) {
+      return res.status(400).json({ message: "notes must be at most 500 characters" });
     }
 
     const cart = await prisma.cart.findUnique({
@@ -110,7 +135,16 @@ export const getMyOrders = async (req, res) => {
     else if (role === "FARMER" || role === "AGENT") {
       filters.items = { some: { listing: { sellerId: id } } };
     }
-    if (status) filters.status = status;
+
+    // Validate status query param against allow-list to prevent unexpected filter values
+    if (status) {
+      const normalizedStatus = String(status).trim().toUpperCase();
+      if (ALLOWED_ORDER_STATUSES.has(normalizedStatus)) {
+        filters.status = normalizedStatus;
+      }
+      // Silently ignore invalid status values rather than erroring — keeps the
+      // endpoint resilient to stale client code sending old status strings.
+    }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
 

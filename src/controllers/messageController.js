@@ -191,8 +191,11 @@ export const sendMessage = async (req, res) => {
   const { conversationId } = req.params;
   const { content } = req.body;
 
+  // OWASP A04 \u2013 enforce a reasonable max length to prevent oversized payloads
   if (!content?.trim())
     return res.status(400).json({ message: "Message content is required" });
+  if (String(content).trim().length > 2000)
+    return res.status(400).json({ message: "Message content must be at most 2000 characters" });
 
   try {
     const conversation = await prisma.conversation.findUnique({
