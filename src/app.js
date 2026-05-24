@@ -42,6 +42,7 @@ import negotiationRouter from "./routes/negotiationRoutes.js";
 import notificationRouter from "./routes/notificationRoutes.js";
 import reviewRouter from "./routes/reviewRoutes.js";
 import disputeRouter from "./routes/disputeRoutes.js";
+import pusherRouter from "./routes/pusherRoutes.js";
 import passport from "./config/passport.js";
 
 import path from "path";
@@ -126,6 +127,7 @@ app.use(cors(corsOptions));
 //    huge payloads (OWASP A04 – Insecure Design).
 // ---------------------------------------------------------------------------
 app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
+app.use("/api/pusher", pusherRouter);
 app.use(express.json({ limit: "50kb" }));
 app.use(express.urlencoded({ extended: true, limit: "50kb" }));
 app.use(cookieParser());

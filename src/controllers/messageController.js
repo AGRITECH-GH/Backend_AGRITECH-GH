@@ -1,6 +1,7 @@
 import prisma from "../config/prisma.js";
 import { pushEvent } from "../config/pusher.js";
 import { createMessageNotification } from "./notificationController.js";
+import { sendNewMessageEmail } from "../services/emailService.js";
 
 /**
  * GET /api/conversations
@@ -201,8 +202,8 @@ export const sendMessage = async (req, res) => {
     const conversation = await prisma.conversation.findUnique({
       where: { id: conversationId },
       include: {
-        participantA: { select: { id: true, email: true, fullName: true } },
-        participantB: { select: { id: true, email: true, fullName: true } },
+        participantA: { select: { id: true, email: true, fullName: true, isOnline: true, lastMessageEmailSentAt: true } },
+        participantB: { select: { id: true, email: true, fullName: true, isOnline: true, lastMessageEmailSentAt: true } },
         listing: { select: { id: true, title: true } },
       },
     });
@@ -253,12 +254,38 @@ export const sendMessage = async (req, res) => {
       conversation.participantAId === userId
         ? conversation.participantA
         : conversation.participantB;
+    const receiver =
+      conversation.participantAId === userId
+        ? conversation.participantB
+        : conversation.participantA;
+        
     createMessageNotification({
       receiverId,
       senderName: sender.fullName,
       conversationId,
       listing: conversation.listing,
     }).catch(() => {});
+
+    // Email notification (fire-and-forget)
+    const FIVE_MINUTES_MS = 5 * 60 * 1000;
+    const timeSinceLastEmail = receiver.lastMessageEmailSentAt 
+      ? new Date() - new Date(receiver.lastMessageEmailSentAt) 
+      : Infinity;
+
+    if (!receiver.isOnline && timeSinceLastEmail > FIVE_MINUTES_MS) {
+      sendNewMessageEmail({
+        to: receiver.email,
+        senderName: sender.fullName,
+        listingTitle: conversation.listing?.title,
+        conversationId,
+      }).catch((err) => console.error("Failed to send new message email:", err));
+      
+      // Update lastMessageEmailSentAt
+      prisma.user.update({
+        where: { id: receiverId },
+        data: { lastMessageEmailSentAt: new Date() },
+      }).catch(() => {});
+    }
 
     res.status(201).json(message);
   } catch (err) {

@@ -1123,3 +1123,49 @@ export const exchangeGoogleCode = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export const resubmitKYC = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    if (user.role !== "FARMER") {
+      return res.status(403).json({ message: "Only farmers can submit KYC documents" });
+    }
+
+    const files = req.files || {};
+    const nationalIdImageUrl = files.nationalId?.[0]?.path;
+    const farmRegistrationImageUrl = files.farmRegistration?.[0]?.path;
+    const businessCertificateImageUrl = files.businessCertificate?.[0]?.path;
+
+    if (!nationalIdImageUrl || !farmRegistrationImageUrl || !businessCertificateImageUrl) {
+      return res.status(400).json({
+        message: "All three KYC documents are required for farmers: National ID, Farm Registration, and Business Certificate",
+      });
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        nationalIdImageUrl,
+        farmRegistrationImageUrl,
+        businessCertificateImageUrl,
+        kycStatus: "PENDING",
+        kycSubmittedAt: new Date(),
+        kycRejectReason: null,
+      },
+    });
+
+    const updatedUser = await getUserForRoleSetup(userId);
+
+    return res.status(200).json({
+      message: "KYC documents resubmitted successfully. Pending admin approval.",
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("Resubmit KYC error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};

@@ -34,6 +34,7 @@ import {
   exchangeGoogleCode,
   getRoleSetupStatus,
   completeRoleSetup,
+  resubmitKYC,
 } from "../controllers/authController.js";
 import {
   uploadProfilePhoto as uploadPhotoMiddleware,
@@ -108,6 +109,13 @@ router.post(
   authenticate,
   uploadKYCDocuments,
   completeRoleSetup
+);
+
+router.post(
+  "/resubmit-kyc",
+  authenticate,
+  uploadKYCDocuments,
+  resubmitKYC
 );
 
 export default router;

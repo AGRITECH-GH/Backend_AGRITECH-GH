@@ -31,6 +31,9 @@ model User {
   profilePhotoUrl String?   @db.VarChar(300)
   isVerified      Boolean   @default(false)
   isActive        Boolean   @default(true)
+  isOnline        Boolean   @default(false)
+  lastSeenAt      DateTime?
+  lastMessageEmailSentAt DateTime?
   verificationToken       String?   @unique
   verificationTokenExpiry DateTime?
   createdAt       DateTime  @default(now())
