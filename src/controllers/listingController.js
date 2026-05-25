@@ -259,15 +259,29 @@ export const getAllListings = async (req, res) => {
       }
     }
 
-    if (location)
-      filters.location = { contains: location, mode: "insensitive" };
+    const andConditions = [];
+
+    if (location) {
+      andConditions.push({
+        OR: [
+          { location: { contains: location, mode: "insensitive" } },
+          { seller: { region: { equals: location, mode: "insensitive" } } },
+        ],
+      });
+    }
 
     if (search) {
-      filters.OR = [
-        { title: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
-        { seller: { fullName: { contains: search, mode: "insensitive" } } },
-      ];
+      andConditions.push({
+        OR: [
+          { title: { contains: search, mode: "insensitive" } },
+          { description: { contains: search, mode: "insensitive" } },
+          { seller: { fullName: { contains: search, mode: "insensitive" } } },
+        ],
+      });
+    }
+
+    if (andConditions.length > 0) {
+      filters.AND = andConditions;
     }
 
     // Validate and apply price filters

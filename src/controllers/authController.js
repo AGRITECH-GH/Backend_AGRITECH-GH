@@ -154,6 +154,7 @@ export const register = async (req, res) => {
           normalizedRole === "FARMER"
             ? req.files.businessCertificate[0].path
             : null,
+        region: normalizedRole === "FARMER" ? req.body.region : null,
         kycStatus: normalizedRole === "FARMER" ? "PENDING" : "APPROVED",
         kycSubmittedAt: normalizedRole === "FARMER" ? new Date() : null,
         isVerified: isEmailVerificationDisabled,
