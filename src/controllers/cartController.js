@@ -15,6 +15,7 @@ export const getCart = async (req, res) => {
                                 quantityAvailable: true,
                                 unit: true,
                                 status: true,
+                                images: true,
                                 seller: { select: { id: true, fullName: true } }
                             }
                         }
@@ -76,7 +77,7 @@ export const addToCart = async (req, res) => {
             where: { cartId_listingId: { cartId: cart.id, listingId } },
             update: { quantity: parseFloat(quantity) },
             create: { cartId: cart.id, listingId, quantity: parseFloat(quantity) },
-            include: { listing: { select: { id: true, title: true, pricePerUnit: true, unit: true } } }
+            include: { listing: { select: { id: true, title: true, pricePerUnit: true, unit: true, images: true } } }
         })
 
         return res.status(200).json({ message: 'Item added to cart', cartItem })

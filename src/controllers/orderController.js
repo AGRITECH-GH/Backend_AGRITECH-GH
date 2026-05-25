@@ -161,7 +161,15 @@ export const getMyOrders = async (req, res) => {
         include: {
           items: {
             include: {
-              listing: { select: { id: true, title: true, unit: true } },
+              listing: { 
+                select: { 
+                  id: true, 
+                  title: true, 
+                  unit: true,
+                  images: true,
+                  seller: { select: { id: true, fullName: true } }
+                } 
+              },
             },
           },
           buyer: { select: { id: true, fullName: true, email: true } },
@@ -203,6 +211,7 @@ export const getOrderById = async (req, res) => {
                 title: true,
                 unit: true,
                 pricePerUnit: true,
+                images: true,
                 seller: { select: { id: true, fullName: true } },
               },
             },
