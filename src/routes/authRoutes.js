@@ -35,6 +35,7 @@ import {
   getRoleSetupStatus,
   completeRoleSetup,
   resubmitKYC,
+  getMe,
 } from "../controllers/authController.js";
 import {
   uploadProfilePhoto as uploadPhotoMiddleware,
@@ -117,5 +118,12 @@ router.post(
   uploadKYCDocuments,
   resubmitKYC
 );
+
+router.get("/me", authenticate, getMe);
+
+console.log("Auth routes loaded");
+router.stack.forEach((r) => {
+  if (r.route) console.log(r.route.path);
+});
 
 export default router;

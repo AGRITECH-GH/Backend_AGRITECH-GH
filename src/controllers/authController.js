@@ -425,6 +425,7 @@ export const refresh = async (req, res) => {
     // Verify the refresh token signature & expiry
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
 
+<<<<<<< HEAD
     // BUG FIX: fetch the user from DB so we can include the current
     // isVerified flag in the new access token. Previously this referenced
     // an undeclared `user` variable which caused a ReferenceError at runtime.
@@ -437,6 +438,14 @@ export const refresh = async (req, res) => {
       // Token is valid but account has been deactivated — reject silently
       res.clearCookie("refreshToken", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict" });
       return res.status(401).json({ message: "Invalid or expired refresh token" });
+=======
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+    });
+
+    if (!user || !user.isActive) {
+      return res.status(403).json({ message: "User account is inactive or not found" });
+>>>>>>> dev
     }
 
     const accessToken = jwt.sign(
@@ -1168,5 +1177,37 @@ export const resubmitKYC = async (req, res) => {
   } catch (error) {
     console.error("Resubmit KYC error:", error);
     res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getMe = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        isVerified: true,
+        isActive: true,
+        profilePhotoUrl: true,
+        phoneNumber: true,
+        region: true,
+        kycStatus: true,
+        kycRejectReason: true,
+        agentId: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({ message: "Account not found or disabled" });
+    }
+
+    return res.status(200).json({ user });
+  } catch (error) {
+    console.error("getMe error:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
