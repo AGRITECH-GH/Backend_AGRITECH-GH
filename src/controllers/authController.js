@@ -351,8 +351,16 @@ export const refresh = async (req, res) => {
 
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
 
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+    });
+
+    if (!user || !user.isActive) {
+      return res.status(403).json({ message: "User account is inactive or not found" });
+    }
+
     const accessToken = jwt.sign(
-      { id: decoded.id, role: decoded.role, isVerified: user.isVerified },
+      { id: user.id, role: user.role, isVerified: user.isVerified },
       process.env.JWT_ACCESS_SECRET,
       { expiresIn: "50m" },
     );
@@ -810,6 +818,38 @@ export const exchangeGoogleCode = async (req, res) => {
     return res.status(200).json({ accessToken: data.accessToken });
   } catch (error) {
     console.error("Exchange code error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getMe = async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        isVerified: true,
+        isActive: true,
+        profilePhotoUrl: true,
+        phoneNumber: true,
+        region: true,
+        kycStatus: true,
+        kycRejectReason: true,
+        agentId: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user || !user.isActive) {
+      return res.status(401).json({ message: "Account not found or disabled" });
+    }
+
+    return res.status(200).json({ user });
+  } catch (error) {
+    console.error("getMe error:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };

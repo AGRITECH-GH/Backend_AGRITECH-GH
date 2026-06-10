@@ -20,6 +20,7 @@ import {
   googleCallbackMiddleware,
   googleCallbackHandler,
   exchangeGoogleCode,
+  getMe,
 } from "../controllers/authController.js";
 import {
   uploadProfilePhoto as uploadPhotoMiddleware,
@@ -51,6 +52,7 @@ router.delete("/profile-photo", authenticate, removeProfilePhoto);
 router.get("/google", googleAuth);
 router.get("/google/callback", googleCallbackMiddleware, googleCallbackHandler);
 router.post("/google/exchange", exchangeGoogleCode);
+router.get("/me", authenticate, getMe);
 console.log("Auth routes loaded");
 router.stack.forEach((r) => {
   if (r.route) console.log(r.route.path);
