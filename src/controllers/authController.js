@@ -104,7 +104,9 @@ export const register = async (req, res) => {
 
     // OWASP A01 – Broken Access Control: constrain role to allowed values
     // BEFORE any DB operation so an attacker cannot self-register as ADMIN.
-    const normalizedRole = String(role || "").trim().toUpperCase();
+    const normalizedRole = String(role || "")
+      .trim()
+      .toUpperCase();
     if (!ALLOWED_REGISTER_ROLES.has(normalizedRole)) {
       return res.status(400).json({ message: "Invalid role" });
     }
@@ -141,9 +143,9 @@ export const register = async (req, res) => {
     const user = await prisma.user.create({
       data: {
         fullName: fullName.trim(),
-        email: normalizedEmail,  // always stored lowercase
+        email: normalizedEmail, // always stored lowercase
         passwordHash: hashedPassword,
-        role: normalizedRole,    // use the validated & normalised role
+        role: normalizedRole, // use the validated & normalised role
         nationalIdImageUrl:
           normalizedRole === "FARMER" ? req.files.nationalId[0].path : null,
         farmRegistrationImageUrl:
@@ -425,27 +427,14 @@ export const refresh = async (req, res) => {
     // Verify the refresh token signature & expiry
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
 
-<<<<<<< HEAD
-    // BUG FIX: fetch the user from DB so we can include the current
-    // isVerified flag in the new access token. Previously this referenced
-    // an undeclared `user` variable which caused a ReferenceError at runtime.
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
-      select: { id: true, role: true, isVerified: true, isActive: true },
-    });
-
-    if (!user || !user.isActive) {
-      // Token is valid but account has been deactivated — reject silently
-      res.clearCookie("refreshToken", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "strict" });
-      return res.status(401).json({ message: "Invalid or expired refresh token" });
-=======
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
     });
 
     if (!user || !user.isActive) {
-      return res.status(403).json({ message: "User account is inactive or not found" });
->>>>>>> dev
+      return res
+        .status(403)
+        .json({ message: "User account is inactive or not found" });
     }
 
     const accessToken = jwt.sign(
@@ -1142,7 +1131,9 @@ export const resubmitKYC = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
     if (user.role !== "FARMER") {
-      return res.status(403).json({ message: "Only farmers can submit KYC documents" });
+      return res
+        .status(403)
+        .json({ message: "Only farmers can submit KYC documents" });
     }
 
     const files = req.files || {};
@@ -1150,9 +1141,14 @@ export const resubmitKYC = async (req, res) => {
     const farmRegistrationImageUrl = files.farmRegistration?.[0]?.path;
     const businessCertificateImageUrl = files.businessCertificate?.[0]?.path;
 
-    if (!nationalIdImageUrl || !farmRegistrationImageUrl || !businessCertificateImageUrl) {
+    if (
+      !nationalIdImageUrl ||
+      !farmRegistrationImageUrl ||
+      !businessCertificateImageUrl
+    ) {
       return res.status(400).json({
-        message: "All three KYC documents are required for farmers: National ID, Farm Registration, and Business Certificate",
+        message:
+          "All three KYC documents are required for farmers: National ID, Farm Registration, and Business Certificate",
       });
     }
 
@@ -1171,7 +1167,8 @@ export const resubmitKYC = async (req, res) => {
     const updatedUser = await getUserForRoleSetup(userId);
 
     return res.status(200).json({
-      message: "KYC documents resubmitted successfully. Pending admin approval.",
+      message:
+        "KYC documents resubmitted successfully. Pending admin approval.",
       user: updatedUser,
     });
   } catch (error) {
