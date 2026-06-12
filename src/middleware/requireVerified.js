@@ -3,7 +3,7 @@ export const requireVerified = (req, res, next) => {
     return next();
   }
 
-  if (!req.user.isVerified) {
+  if (!req.user || !req.user.isVerified) {
     return res.status(403).json({
       message: "Please verify your email to perform this action",
       isVerified: false,

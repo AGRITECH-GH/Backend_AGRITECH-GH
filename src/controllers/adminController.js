@@ -93,11 +93,17 @@ export const updateUser = async (req, res) => {
         .json({ message: "You cannot disable your own account" });
     }
 
+    const ALLOWED_ROLES = new Set(["BUYER", "FARMER", "AGENT", "ADMIN"]);
+    if (role !== undefined && !ALLOWED_ROLES.has(String(role).toUpperCase())) {
+      return res.status(400).json({ message: "Invalid role value" });
+    }
+    const normalizedRole = role ? String(role).toUpperCase() : undefined;
+
     const updated = await prisma.user.update({
       where: { id },
       data: {
         ...(isActive !== undefined && { isActive }),
-        ...(role && { role }),
+        ...(normalizedRole && { role: normalizedRole }),
         ...(isVerified !== undefined && { isVerified }),
       },
       select: {
@@ -364,9 +370,10 @@ export const getReviewedKYCSubmissions = async (req, res) => {
     const allowedStatuses = ["APPROVED", "REJECTED"];
     const filters = {
       role: "FARMER",
-      kycStatus: normalizedStatus && allowedStatuses.includes(normalizedStatus)
-        ? normalizedStatus
-        : { in: allowedStatuses },
+      kycStatus:
+        normalizedStatus && allowedStatuses.includes(normalizedStatus)
+          ? normalizedStatus
+          : { in: allowedStatuses },
     };
 
     if (search) {
@@ -461,10 +468,15 @@ export const approveKYC = async (req, res) => {
     let emailNotificationSent = true;
     let emailErrorMessage = null;
     try {
-      await sendKYCStatusEmail(updated.email, updated.fullName, updated.kycStatus);
+      await sendKYCStatusEmail(
+        updated.email,
+        updated.fullName,
+        updated.kycStatus,
+      );
     } catch (emailError) {
       emailNotificationSent = false;
-      emailErrorMessage = emailError.message || "Failed to send KYC approval email";
+      emailErrorMessage =
+        emailError.message || "Failed to send KYC approval email";
       console.error("Approve KYC email error:", emailError);
     }
 
@@ -533,7 +545,8 @@ export const rejectKYC = async (req, res) => {
       );
     } catch (emailError) {
       emailNotificationSent = false;
-      emailErrorMessage = emailError.message || "Failed to send KYC rejection email";
+      emailErrorMessage =
+        emailError.message || "Failed to send KYC rejection email";
       console.error("Reject KYC email error:", emailError);
     }
 
@@ -618,7 +631,8 @@ export const resendKYCDecisionEmail = async (req, res) => {
 
     if (!["APPROVED", "REJECTED"].includes(user.kycStatus)) {
       return res.status(400).json({
-        message: "KYC email can only be resent for approved or rejected submissions",
+        message:
+          "KYC email can only be resent for approved or rejected submissions",
       });
     }
 

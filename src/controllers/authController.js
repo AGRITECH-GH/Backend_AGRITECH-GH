@@ -163,21 +163,27 @@ export const register = async (req, res) => {
       },
     });
 
-    if (role === "AGENT") {
+    if (normalizedRole === "AGENT") {
       const { assignedRegion, commissionRate, bio } = req.body;
       if (!assignedRegion || !commissionRate) {
+        await prisma.user.delete({ where: { id: user.id } }).catch(() => {});
         return res.status(400).json({
           message: "assignedRegion and commissionRate are required for agents",
         });
       }
-      await prisma.fieldAgent.create({
-        data: {
-          assignedRegion,
-          commissionRate: parseFloat(commissionRate),
-          bio,
-          userId: user.id,
-        },
-      });
+      try {
+        await prisma.fieldAgent.create({
+          data: {
+            assignedRegion,
+            commissionRate: parseFloat(commissionRate),
+            bio,
+            userId: user.id,
+          },
+        });
+      } catch (agentErr) {
+        await prisma.user.delete({ where: { id: user.id } }).catch(() => {});
+        throw agentErr;
+      }
     }
 
     if (!isEmailVerificationDisabled) {
@@ -266,7 +272,7 @@ export const verifyEmail = async (req, res) => {
     });
 
     const accessToken = jwt.sign(
-      { id: user.id, role: user.role, isVerified: user.isVerified },
+      { id: user.id, role: user.role, isVerified: true },
       process.env.JWT_ACCESS_SECRET,
       { expiresIn: "50m" },
     );
@@ -315,7 +321,10 @@ export const resendVerification = async (req, res) => {
       return res.status(400).json({ message: "Email is required" });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
 
     if (!user) {
       return res.status(200).json({
@@ -472,7 +481,10 @@ export const forgotPassword = async (req, res) => {
       return res.status(400).json({ message: "Email is required" });
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
 
     // Always return success to prevent email enumeration
     if (!user) {
@@ -570,6 +582,15 @@ export const changePassword = async (req, res) => {
 
     const user = await prisma.user.findUnique({ where: { id: req.user.id } });
 
+    if (!user.passwordHash) {
+      return res
+        .status(400)
+        .json({
+          message:
+            "Password change is not available for social sign-in accounts",
+        });
+    }
+
     const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!isMatch) {
       return res.status(400).json({ message: "Current password is incorrect" });
@@ -606,6 +627,15 @@ export const deleteAccount = async (req, res) => {
     }
 
     const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+
+    if (!user.passwordHash) {
+      return res
+        .status(400)
+        .json({
+          message:
+            "Account deletion via password is not available for social sign-in accounts. Contact support.",
+        });
+    }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
@@ -683,6 +713,15 @@ export const requestEmailChange = async (req, res) => {
     }
 
     const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+
+    if (!user.passwordHash) {
+      return res
+        .status(400)
+        .json({
+          message:
+            "Password verification is not available for social sign-in accounts",
+        });
+    }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {

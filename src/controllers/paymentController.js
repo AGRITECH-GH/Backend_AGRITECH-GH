@@ -314,6 +314,7 @@ export const getPaymentStatus = async (req, res) => {
         paidAt: true,
         paystackReference: true,
         createdAt: true,
+        order: { select: { buyerId: true } },
       },
     });
 
@@ -323,7 +324,12 @@ export const getPaymentStatus = async (req, res) => {
         .json({ message: "No payment found for this order" });
     }
 
-    return res.status(200).json({ payment });
+    if (payment.order.buyerId !== req.user.id && req.user.role !== "ADMIN") {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    const { order: _order, ...paymentData } = payment;
+    return res.status(200).json({ payment: paymentData });
   } catch (error) {
     console.error("Get payment status error:", error);
     return res.status(500).json({ message: "Internal server error" });
