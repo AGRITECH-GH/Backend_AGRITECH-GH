@@ -6,6 +6,9 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:unit": "vitest run tests/unit tests/auth",
+    "test:integration": "vitest run tests/integration",
+    "test:e2e": "vitest run tests/e2e",
     "dev": "nodemon --experimental-specifier-resolution=node src/server.js",
     "seed": "node --experimental-specifier-resolution=node prisma/seed.js",
     "build": "prisma migrate deploy && npm run seed",
@@ -47,6 +50,7 @@
   "devDependencies": {
     "nodemon": "^3.1.14",
     "supabase": "^2.101.0",
+    "supertest": "^7.2.2",
     "vitest": "^4.1.8"
   }
 }
