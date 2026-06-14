@@ -274,7 +274,8 @@ export const sendMessage = async (req, res) => {
 
     if (!receiver.isOnline && timeSinceLastEmail > FIVE_MINUTES_MS) {
       sendNewMessageEmail({
-        to: receiver.email,
+        email: receiver.email,
+        recipientName: receiver.fullName,
         senderName: sender.fullName,
         listingTitle: conversation.listing?.title,
         conversationId,

@@ -36,6 +36,11 @@ model User {
   lastMessageEmailSentAt DateTime?
   verificationToken       String?   @unique
   verificationTokenExpiry DateTime?
+  // Dedicated fields for password-reset flow (isolated from verificationToken)
+  passwordResetToken       String?   @unique
+  passwordResetTokenExpiry DateTime?
+  // Pending email stored server-side during email-change flow
+  pendingEmail             String?   @db.VarChar(150)
   createdAt       DateTime  @default(now())
 
   // Relations

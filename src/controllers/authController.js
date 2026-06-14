@@ -496,11 +496,13 @@ export const forgotPassword = async (req, res) => {
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetTokenExpiry = new Date(Date.now() + 1 * 60 * 60 * 1000); // 1 hour
 
+    // Use dedicated reset-token fields — do NOT touch verificationToken so any
+    // in-flight email-verification link for this user remains valid.
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        verificationToken: resetToken,
-        verificationTokenExpiry: resetTokenExpiry,
+        passwordResetToken: resetToken,
+        passwordResetTokenExpiry: resetTokenExpiry,
       },
     });
 
@@ -534,8 +536,8 @@ export const resetPassword = async (req, res) => {
 
     const user = await prisma.user.findFirst({
       where: {
-        verificationToken: token,
-        verificationTokenExpiry: { gt: new Date() },
+        passwordResetToken: token,
+        passwordResetTokenExpiry: { gt: new Date() },
       },
     });
 
@@ -551,8 +553,8 @@ export const resetPassword = async (req, res) => {
       where: { id: user.id },
       data: {
         passwordHash: hashedPassword,
-        verificationToken: null,
-        verificationTokenExpiry: null,
+        passwordResetToken: null,
+        passwordResetTokenExpiry: null,
       },
     });
 
@@ -748,12 +750,14 @@ export const requestEmailChange = async (req, res) => {
     const token = crypto.randomBytes(32).toString("hex");
     const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    // Store token and pending new email
+    // Store the token AND the intended new email so confirmEmailChange can
+    // read the target address from the server — never trusting the client body.
     await prisma.user.update({
       where: { id: req.user.id },
       data: {
         verificationToken: token,
         verificationTokenExpiry: expiry,
+        pendingEmail: normalizedNewEmail,
       },
     });
 
@@ -770,16 +774,11 @@ export const requestEmailChange = async (req, res) => {
 
 export const confirmEmailChange = async (req, res) => {
   try {
-    const { token, newEmail } = req.body;
+    const { token } = req.body;
 
-    if (!token || !newEmail) {
-      return res
-        .status(400)
-        .json({ message: "Token and new email are required" });
+    if (!token) {
+      return res.status(400).json({ message: "Token is required" });
     }
-
-    // Normalise email before lookup & storage
-    const normalizedNewEmail = String(newEmail).trim().toLowerCase();
 
     const user = await prisma.user.findFirst({
       where: {
@@ -791,6 +790,14 @@ export const confirmEmailChange = async (req, res) => {
     if (!user) {
       return res.status(400).json({ message: "Invalid or expired token" });
     }
+
+    // Use the server-stored address — never accept newEmail from the client body
+    // to prevent an attacker with a stolen token from redirecting the change.
+    if (!user.pendingEmail) {
+      return res.status(400).json({ message: "Invalid or expired token" });
+    }
+
+    const normalizedNewEmail = user.pendingEmail.toLowerCase();
 
     // Check again if new email is taken (race-condition guard)
     const existing = await prisma.user.findUnique({
@@ -804,6 +811,7 @@ export const confirmEmailChange = async (req, res) => {
       where: { id: user.id },
       data: {
         email: normalizedNewEmail,
+        pendingEmail: null,
         verificationToken: null,
         verificationTokenExpiry: null,
       },
