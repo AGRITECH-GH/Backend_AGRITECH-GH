@@ -6,7 +6,7 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:unit": "vitest run tests/unit tests/auth",
+    "test:unit": "vitest run tests/auth",
     "test:integration": "vitest run tests/integration",
     "test:e2e": "vitest run tests/e2e",
     "dev": "nodemon --experimental-specifier-resolution=node src/server.js",
