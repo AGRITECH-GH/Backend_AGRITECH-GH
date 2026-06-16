@@ -45,6 +45,7 @@ import {
   authLimiter,
   sensitiveAuthLimiter,
   oauthExchangeLimiter,
+  authenticatedWriteLimiter,
 } from "../middleware/rateLimiter.js";
 import { validate, schemas } from "../middleware/validate.js";
 
@@ -58,8 +59,10 @@ router.post("/login",    authLimiter, validate(schemas.login), login);
 
 // ---------------------------------------------------------------------------
 // Token management
+// authLimiter on /refresh prevents token-cycling / flooding attacks.
+// /logout is covered by the global generalLimiter (100/15 min).
 // ---------------------------------------------------------------------------
-router.post("/refresh", refresh);
+router.post("/refresh", authLimiter, refresh);
 router.post("/logout",  logout);
 
 // ---------------------------------------------------------------------------
@@ -76,18 +79,20 @@ router.post("/reset-password",  sensitiveAuthLimiter, validate(schemas.resetPass
 
 // ---------------------------------------------------------------------------
 // Authenticated profile management
+// sensitiveAuthLimiter (5/15 min) on password/email-change to prevent abuse.
+// authenticatedWriteLimiter on other profile mutations (keyed userId+IP).
 // ---------------------------------------------------------------------------
-router.put("/change-password",        authenticate, changePassword);
-router.delete("/delete-account",      authenticate, deleteAccount);
-router.put("/edit-profile",           authenticate, validate(schemas.editProfile, { allowExtra: false }), editProfile);
-router.post("/request-email-change",  authenticate, validate(schemas.requestEmailChange), requestEmailChange);
-router.post("/confirm-email-change",  validate(schemas.confirmEmailChange), confirmEmailChange);
+router.put("/change-password",        authenticate, sensitiveAuthLimiter, validate(schemas.changePassword), changePassword);
+router.delete("/delete-account",      authenticate, sensitiveAuthLimiter, deleteAccount);
+router.put("/edit-profile",           authenticate, authenticatedWriteLimiter, validate(schemas.editProfile, { allowExtra: false }), editProfile);
+router.post("/request-email-change",  authenticate, sensitiveAuthLimiter, validate(schemas.requestEmailChange), requestEmailChange);
+router.post("/confirm-email-change",  sensitiveAuthLimiter, validate(schemas.confirmEmailChange), confirmEmailChange);
 
 // ---------------------------------------------------------------------------
 // Profile photo
 // ---------------------------------------------------------------------------
-router.post("/profile-photo",   authenticate, uploadPhotoMiddleware, uploadProfilePhoto);
-router.delete("/profile-photo", authenticate, removeProfilePhoto);
+router.post("/profile-photo",   authenticate, authenticatedWriteLimiter, uploadPhotoMiddleware, uploadProfilePhoto);
+router.delete("/profile-photo", authenticate, authenticatedWriteLimiter, removeProfilePhoto);
 
 // ---------------------------------------------------------------------------
 // Google OAuth — redirect flow (no JSON body; limiters are on the exchange step)
@@ -103,11 +108,14 @@ router.post(
 
 // ---------------------------------------------------------------------------
 // Role setup
+// authenticatedWriteLimiter on complete-role-setup to prevent rapid re-uploads.
+// sensitiveAuthLimiter on resubmit-kyc — it involves file processing and email.
 // ---------------------------------------------------------------------------
 router.get("/role-setup-status",    authenticate, getRoleSetupStatus);
 router.post(
   "/complete-role-setup",
   authenticate,
+  authenticatedWriteLimiter,
   uploadKYCDocuments,
   completeRoleSetup
 );
@@ -115,6 +123,7 @@ router.post(
 router.post(
   "/resubmit-kyc",
   authenticate,
+  sensitiveAuthLimiter,
   uploadKYCDocuments,
   resubmitKYC
 );

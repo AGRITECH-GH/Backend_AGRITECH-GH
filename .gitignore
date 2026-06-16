@@ -5,6 +5,11 @@ node_modules/
 .env
 .env.test
 
+docs/
+
+tests/
+
+
 # Prisma generated client
 prisma/prisma-client-js/
 

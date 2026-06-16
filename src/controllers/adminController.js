@@ -93,17 +93,11 @@ export const updateUser = async (req, res) => {
         .json({ message: "You cannot disable your own account" });
     }
 
-    const ALLOWED_ROLES = new Set(["BUYER", "FARMER", "AGENT", "ADMIN"]);
-    if (role !== undefined && !ALLOWED_ROLES.has(String(role).toUpperCase())) {
-      return res.status(400).json({ message: "Invalid role value" });
-    }
-    const normalizedRole = role ? String(role).toUpperCase() : undefined;
-
     const updated = await prisma.user.update({
       where: { id },
       data: {
         ...(isActive !== undefined && { isActive }),
-        ...(normalizedRole && { role: normalizedRole }),
+        ...(role && { role }),
         ...(isVerified !== undefined && { isVerified }),
       },
       select: {

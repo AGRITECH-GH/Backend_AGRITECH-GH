@@ -279,8 +279,10 @@ export const schemas = {
    * POST /api/auth/confirm-email-change
    */
   confirmEmailChange: {
-    token:    { required: true, type: "string", minLength: 1, maxLength: 256 },
-    newEmail: { required: true, type: "email" },
+    token: { required: true, type: "string", minLength: 1, maxLength: 256 },
+    // newEmail is no longer used by the server (it reads pendingEmail from DB)
+    // but kept as optional so existing clients don't break during the rollout.
+    newEmail: { optional: true, type: "email" },
   },
 
   /**
@@ -336,5 +338,89 @@ export const schemas = {
    */
   exchangeGoogleCode: {
     code: { required: true, type: "string", minLength: 1, maxLength: 1024 },
+  },
+
+  /**
+   * PUT /api/auth/change-password
+   * currentPassword is opaque (no length floor beyond "non-empty").
+   * newPassword enforces the same policy as registration (8+ chars).
+   * Digit requirement is enforced by the controller for a clearer error message.
+   */
+  changePassword: {
+    currentPassword: { required: true, type: "string", minLength: 1, maxLength: 128 },
+    newPassword:     { required: true, type: "string", minLength: 8, maxLength: 128 },
+  },
+
+  /**
+   * POST /api/barter
+   * offeredListingId OR offeredDescription must be present — the controller
+   * enforces the "at least one of" rule; both are optional here so the schema
+   * passes and the controller provides a descriptive error.
+   */
+  createBarterRequest: {
+    targetListingId:    { required: true, type: "string", minLength: 1,  maxLength: 100 },
+    offeredListingId:   { optional: true, type: "string",                maxLength: 100 },
+    offeredDescription: { optional: true, type: "string",                maxLength: 500 },
+    // Positive number validated by the controller (parseFloat); schema just
+    // ensures mass-assignment protection by declaring the field explicitly.
+    offeredQuantity:    { optional: true },
+    message:            { optional: true, type: "string",                maxLength: 1000 },
+  },
+
+  /**
+   * PUT /api/barter/:id
+   */
+  updateBarterStatus: {
+    status: {
+      required: true,
+      type: "string",
+      enum: ["ACCEPTED", "REJECTED", "CANCELLED"],
+    },
+  },
+
+  /**
+   * POST /api/negotiations
+   * offeredPrice / quantity are numbers; the controller parses & validates them
+   * (parseFloat + positive-check). Declared here for mass-assignment protection.
+   */
+  makeOffer: {
+    listingId:      { required: true, type: "string", minLength: 1, maxLength: 100 },
+    offeredPrice:   { required: true },
+    quantity:       { optional: true },
+    note:           { optional: true, type: "string", maxLength: 1000 },
+    conversationId: { optional: true, type: "string", maxLength: 100 },
+  },
+
+  /**
+   * PATCH /api/negotiations/:offerId
+   */
+  respondToOffer: {
+    status: {
+      required: true,
+      type: "string",
+      enum: ["ACCEPTED", "REJECTED", "COUNTERED", "WITHDRAWN"],
+    },
+    note: { optional: true, type: "string", maxLength: 1000 },
+  },
+
+  /**
+   * POST /api/disputes
+   * evidenceUrls is an array — the controller validates it with Array.isArray;
+   * it is declared here only to pass the anti-mass-assignment check.
+   */
+  createDispute: {
+    orderId:      { required: true, type: "string", minLength: 1, maxLength: 100 },
+    reason:       { required: true, type: "string", minLength: 1, maxLength: 500 },
+    details:      { optional: true, type: "string",               maxLength: 2000 },
+    evidenceUrls: { optional: true },
+  },
+
+  /**
+   * POST /api/cart/items
+   * quantity: positive number enforced by min: 0.001 (supports fractional kg etc.)
+   */
+  addToCart: {
+    listingId: { required: true, type: "string", minLength: 1, maxLength: 100 },
+    quantity:  { required: true, type: "number", min: 0.001 },
   },
 };
