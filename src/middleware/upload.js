@@ -82,6 +82,11 @@ export const uploadKYCDocuments = multer({
       folder: "FarmBridge/kyc",
       allowed_formats: ["jpg", "jpeg", "png", "webp", "pdf"],
       resource_type: "auto",
+      // KYC documents contain national IDs and business papers — deliver as
+      // authenticated assets so the raw URL returns 401 without a signature.
+      // Serve them via signKycUrl() (src/utils/kycUrl.js) which generates
+      // signed delivery URLs for authorised viewers only.
+      type: "authenticated",
       transformation: [{ width: 1000, crop: "limit" }],
     },
   }),

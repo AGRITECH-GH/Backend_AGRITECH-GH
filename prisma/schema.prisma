@@ -41,6 +41,9 @@ model User {
   passwordResetTokenExpiry DateTime?
   // Pending email stored server-side during email-change flow
   pendingEmail             String?   @db.VarChar(150)
+  // Refresh-token revocation: bumped on password change/reset so every
+  // previously issued refresh token (which embeds this value) is rejected.
+  tokenVersion             Int       @default(0)
   createdAt       DateTime  @default(now())
 
   // Relations

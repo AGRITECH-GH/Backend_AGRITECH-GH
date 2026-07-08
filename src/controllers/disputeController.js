@@ -27,9 +27,30 @@ export const createDispute = async (req, res) => {
     return res.status(400).json({ message: "orderId and reason are required" });
   }
 
-  const cleanEvidence = Array.isArray(evidenceUrls)
-    ? evidenceUrls.filter((url) => typeof url === "string" && url.trim())
-    : [];
+  // Only accept http(s) URLs — a stored javascript: or data: URI would become
+  // an XSS vector wherever evidence links are rendered as clickable.
+  const isSafeEvidenceUrl = (url) => {
+    if (typeof url !== "string") return false;
+    const trimmed = url.trim();
+    if (!trimmed || trimmed.length > 500) return false;
+    return /^https?:\/\//i.test(trimmed);
+  };
+
+  const rawEvidence = Array.isArray(evidenceUrls) ? evidenceUrls : [];
+  if (rawEvidence.length > 10) {
+    return res
+      .status(400)
+      .json({ message: "At most 10 evidence URLs are allowed" });
+  }
+  const provided = rawEvidence.filter(
+    (url) => typeof url === "string" && url.trim(),
+  );
+  if (provided.some((url) => !isSafeEvidenceUrl(url))) {
+    return res.status(400).json({
+      message: "evidenceUrls must be http(s) URLs of at most 500 characters",
+    });
+  }
+  const cleanEvidence = provided.map((url) => url.trim());
 
   try {
     const order = await prisma.order.findUnique({

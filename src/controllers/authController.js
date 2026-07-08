@@ -9,9 +9,13 @@ import {
 } from "../services/emailService.js";
 import passport from "../config/passport.js";
 import jwt from "jsonwebtoken";
+import { withSignedKycUrls } from "../utils/kycUrl.js";
 
 const isEmailVerificationDisabled =
   process.env.DISABLE_EMAIL_VERIFICATION === "true";
+
+// Access-token lifetime — single source of truth, configurable via env.
+const ACCESS_TOKEN_EXPIRES = process.env.JWT_ACCESS_EXPIRES || "30m";
 
 const getRoleSetupStatusFromUser = (user) => {
   const role = String(user?.role || "").toUpperCase();
@@ -202,10 +206,10 @@ export const register = async (req, res) => {
     const accessToken = jwt.sign(
       { id: user.id, role: user.role, isVerified: user.isVerified },
       process.env.JWT_ACCESS_SECRET,
-      { expiresIn: "50m" },
+      { expiresIn: ACCESS_TOKEN_EXPIRES },
     );
     const refreshToken = jwt.sign(
-      { id: user.id, role: user.role },
+      { id: user.id, role: user.role, tv: user.tokenVersion ?? 0 },
       process.env.JWT_REFRESH_SECRET,
       { expiresIn: "7d" },
     );
@@ -274,11 +278,11 @@ export const verifyEmail = async (req, res) => {
     const accessToken = jwt.sign(
       { id: user.id, role: user.role, isVerified: true },
       process.env.JWT_ACCESS_SECRET,
-      { expiresIn: "50m" },
+      { expiresIn: ACCESS_TOKEN_EXPIRES },
     );
 
     const refreshToken = jwt.sign(
-      { id: user.id, role: user.role },
+      { id: user.id, role: user.role, tv: user.tokenVersion ?? 0 },
       process.env.JWT_REFRESH_SECRET,
       { expiresIn: "7d" },
     );
@@ -391,11 +395,11 @@ export const login = async (req, res) => {
     const accessToken = jwt.sign(
       { id: user.id, role: user.role, isVerified: user.isVerified },
       process.env.JWT_ACCESS_SECRET,
-      { expiresIn: "50m" },
+      { expiresIn: ACCESS_TOKEN_EXPIRES },
     );
 
     const refreshToken = jwt.sign(
-      { id: user.id, role: user.role },
+      { id: user.id, role: user.role, tv: user.tokenVersion ?? 0 },
       process.env.JWT_REFRESH_SECRET,
       { expiresIn: rememberMe ? "30d" : "7d" },
     );
@@ -446,10 +450,18 @@ export const refresh = async (req, res) => {
         .json({ message: "User account is inactive or not found" });
     }
 
+    // Server-side revocation: tokens issued before a password change/reset
+    // carry a stale version (or none at all) and are rejected.
+    if ((decoded.tv ?? -1) !== (user.tokenVersion ?? 0)) {
+      return res
+        .status(403)
+        .json({ message: "Invalid or expired refresh token" });
+    }
+
     const accessToken = jwt.sign(
       { id: user.id, role: user.role, isVerified: user.isVerified },
       process.env.JWT_ACCESS_SECRET,
-      { expiresIn: "50m" },
+      { expiresIn: ACCESS_TOKEN_EXPIRES },
     );
 
     return res.status(200).json({ accessToken });
@@ -555,6 +567,9 @@ export const resetPassword = async (req, res) => {
         passwordHash: hashedPassword,
         passwordResetToken: null,
         passwordResetTokenExpiry: null,
+        // Revoke every outstanding refresh token — an attacker who stole a
+        // session must not survive the owner's password reset.
+        tokenVersion: { increment: 1 },
       },
     });
 
@@ -608,7 +623,11 @@ export const changePassword = async (req, res) => {
 
     await prisma.user.update({
       where: { id: req.user.id },
-      data: { passwordHash: hashedPassword },
+      data: {
+        passwordHash: hashedPassword,
+        // Revoke all outstanding refresh tokens on password change
+        tokenVersion: { increment: 1 },
+      },
     });
 
     return res.status(200).json({ message: "Password changed successfully" });
@@ -1127,6 +1146,7 @@ export const exchangeGoogleCode = async (req, res) => {
         role: true,
         isVerified: true,
         profilePhotoUrl: true,
+        tokenVersion: true,
       },
     });
 
@@ -1137,11 +1157,11 @@ export const exchangeGoogleCode = async (req, res) => {
     const accessToken = jwt.sign(
       { id: user.id, role: user.role, isVerified: user.isVerified },
       process.env.JWT_ACCESS_SECRET,
-      { expiresIn: "15m" },
+      { expiresIn: ACCESS_TOKEN_EXPIRES },
     );
 
     const refreshToken = jwt.sign(
-      { id: user.id, role: user.role },
+      { id: user.id, role: user.role, tv: user.tokenVersion ?? 0 },
       process.env.JWT_REFRESH_SECRET,
       { expiresIn: "7d" },
     );
@@ -1216,7 +1236,7 @@ export const resubmitKYC = async (req, res) => {
     return res.status(200).json({
       message:
         "KYC documents resubmitted successfully. Pending admin approval.",
-      user: updatedUser,
+      user: withSignedKycUrls(updatedUser),
     });
   } catch (error) {
     console.error("Resubmit KYC error:", error);

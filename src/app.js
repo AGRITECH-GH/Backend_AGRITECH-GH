@@ -34,6 +34,7 @@ import paymentRouter from "./routes/paymentRoutes.js";
 import {
   generalLimiter,
   publicReadLimiter,
+  webhookLimiter,
 } from "./middleware/rateLimiter.js";
 import categoryRouter from "./routes/categoryRoutes.js";
 import userRouter from "./routes/userRoutes.js";
@@ -127,7 +128,9 @@ app.use(cors(corsOptions));
 //    huge payloads (OWASP A04 – Insecure Design).
 // ---------------------------------------------------------------------------
 app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
-app.use("/api/pusher", pusherRouter);
+// Pusher webhook must be mounted before express.json (raw body for HMAC),
+// which also places it before generalLimiter — so it gets its own limiter.
+app.use("/api/pusher", webhookLimiter, pusherRouter);
 app.use(express.json({ limit: "50kb" }));
 app.use(express.urlencoded({ extended: true, limit: "50kb" }));
 app.use(cookieParser());

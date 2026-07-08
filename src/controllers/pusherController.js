@@ -1,18 +1,36 @@
 import crypto from "crypto";
 import prisma from "../config/prisma.js";
 
+/**
+ * Constant-time comparison of two hex signature strings.
+ * Returns false on length mismatch without leaking timing information.
+ */
+const signaturesMatch = (expectedHex, providedHex) => {
+  if (typeof providedHex !== "string" || providedHex.length === 0) return false;
+  const expected = Buffer.from(expectedHex, "utf8");
+  const provided = Buffer.from(providedHex, "utf8");
+  if (expected.length !== provided.length) return false;
+  return crypto.timingSafeEqual(expected, provided);
+};
+
 export const handlePusherWebhook = async (req, res) => {
   const webhookSignature = req.headers["x-pusher-signature"];
+  const webhookKey = req.headers["x-pusher-key"];
   const bodyBuffer = req.body;
   const bodyString = bodyBuffer.toString();
 
-  // Verify signature
+  // Reject webhooks signed for a different Pusher app key
+  if (webhookKey !== process.env.PUSHER_KEY) {
+    return res.status(401).json({ message: "Invalid webhook key" });
+  }
+
+  // Verify signature (constant-time)
   const expectedSignature = crypto
     .createHmac("sha256", process.env.PUSHER_SECRET)
     .update(bodyString)
     .digest("hex");
 
-  if (expectedSignature !== webhookSignature) {
+  if (!signaturesMatch(expectedSignature, webhookSignature)) {
     return res.status(401).json({ message: "Invalid webhook signature" });
   }
 

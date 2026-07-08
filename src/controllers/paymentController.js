@@ -230,13 +230,23 @@ export const paystackWebhook = async (req, res) => {
             : JSON.stringify(req.body || {}),
         );
 
-    // Verify webhook signature
+    // Verify webhook signature (constant-time comparison)
     const hash = crypto
       .createHmac("sha512", PAYSTACK_SECRET)
       .update(rawBody)
       .digest("hex");
 
-    if (!signature || hash !== signature) {
+    const signatureValid =
+      typeof signature === "string" &&
+      signature.length > 0 &&
+      Buffer.from(hash, "utf8").length ===
+        Buffer.from(signature, "utf8").length &&
+      crypto.timingSafeEqual(
+        Buffer.from(hash, "utf8"),
+        Buffer.from(signature, "utf8"),
+      );
+
+    if (!signatureValid) {
       console.error("Invalid webhook signature");
       return res.status(401).json({ message: "Invalid signature" });
     }

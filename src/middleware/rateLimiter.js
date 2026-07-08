@@ -162,6 +162,22 @@ export const oauthExchangeLimiter = rateLimit({
 });
 
 /**
+ * Webhook limiter — server-to-server webhook endpoints (Pusher).
+ * These are mounted BEFORE the global limiter (they need the raw body parser
+ * to run before express.json), so they need their own ceiling.
+ * 120 requests per minute per IP — generous for legitimate webhook bursts,
+ * blocks brute-force attempts against the HMAC signature.
+ */
+export const webhookLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 120,
+  message: { message: "Too many requests" },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: handle429,
+});
+
+/**
  * Authenticated action limiter — write operations on authenticated routes.
  * 60 requests per 15 minutes, keyed on userId + IP.
  * Applied to mutating endpoints (orders, messages, reviews, etc.).

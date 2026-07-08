@@ -1,5 +1,6 @@
 import prisma from "../config/prisma.js";
 import { sendKYCStatusEmail } from "../services/emailService.js";
+import { withSignedKycUrls } from "../utils/kycUrl.js";
 
 const KYC_EMAIL_ACTIONS = {
   APPROVE: "APPROVE",
@@ -342,7 +343,7 @@ export const getPendingKYCSubmissions = async (req, res) => {
     ]);
 
     return res.status(200).json({
-      submissions,
+      submissions: submissions.map(withSignedKycUrls),
       pagination: {
         total,
         page: parseInt(page),
@@ -409,7 +410,7 @@ export const getReviewedKYCSubmissions = async (req, res) => {
     ]);
 
     return res.status(200).json({
-      submissions,
+      submissions: submissions.map(withSignedKycUrls),
       pagination: {
         total,
         page: parseInt(page),
@@ -593,7 +594,7 @@ export const getKYCStatus = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    return res.status(200).json({ user });
+    return res.status(200).json({ user: withSignedKycUrls(user) });
   } catch (error) {
     console.error("Get KYC status error:", error);
     return res.status(500).json({ message: "Internal server error" });

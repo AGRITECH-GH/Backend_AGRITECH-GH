@@ -11,6 +11,7 @@
     "test:e2e": "vitest run tests/e2e",
     "dev": "nodemon --experimental-specifier-resolution=node src/server.js",
     "seed": "node --experimental-specifier-resolution=node prisma/seed.js",
+    "migrate:kyc": "node --experimental-specifier-resolution=node scripts/migrate-kyc-to-authenticated.js",
     "build": "prisma migrate deploy && npm run seed",
     "postinstall": "prisma generate"
   },
@@ -30,7 +31,7 @@
     "@prisma/client": "^5.22.0",
     "axios": "^1.13.6",
     "bcryptjs": "^3.0.3",
-    "cloudinary": "^1.41.3",
+    "cloudinary": "^2.10.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
