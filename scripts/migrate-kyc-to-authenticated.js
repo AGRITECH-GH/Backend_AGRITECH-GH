@@ -18,6 +18,13 @@
  *   npm run migrate:kyc          # dry run
  *   npm run migrate:kyc -- --apply
  *
+ * Targeting a specific environment (e.g. production) without editing .env:
+ *   npm run migrate:kyc -- --env=.env.prod              # dry run against prod
+ *   npm run migrate:kyc -- --env=.env.prod --apply      # migrate prod
+ * Defaults to the local .env when --env is not given.
+ * (Named --env, not --env-file, to avoid colliding with Node's built-in
+ *  --env-file option.)
+ *
  * Behaviour:
  * - Only touches assets under the FarmBridge/kyc folder — profile photos and
  *   listing images are never modified.
@@ -28,9 +35,34 @@
  *   skipped; the run continues.
  */
 
-import "dotenv/config";
+import fs from "fs";
+import dotenv from "dotenv";
 import { v2 as cloudinary } from "cloudinary";
 import { PrismaClient } from "../prisma/prisma-client-js/index.js";
+
+/**
+ * Resolve the env file to load from `--env=<path>` or `--env <path>`.
+ * Falls back to the default `.env`.
+ *
+ * Deliberately NOT named `--env-file` — Node 20.6+ treats that as a built-in
+ * CLI option and consumes it before the script sees argv.
+ */
+const resolveEnvPath = (argv) => {
+  const inline = argv.find((a) => a.startsWith("--env="));
+  if (inline) return inline.slice("--env=".length);
+  const idx = argv.indexOf("--env");
+  if (idx !== -1 && argv[idx + 1]) return argv[idx + 1];
+  return ".env";
+};
+
+// Load env BEFORE cloudinary.config() and new PrismaClient() read process.env.
+const ENV_PATH = resolveEnvPath(process.argv);
+if (!fs.existsSync(ENV_PATH)) {
+  console.error(`[migrate-kyc] Env file not found: ${ENV_PATH}`);
+  process.exit(1);
+}
+dotenv.config({ path: ENV_PATH });
+console.log(`[migrate-kyc] Loaded environment from ${ENV_PATH}`);
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
